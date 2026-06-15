@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -6,7 +6,6 @@ import {
   BriefcaseMedical,
   CalendarDays,
   Calculator,
-  ChevronDown,
   ChevronRight,
   CircleUserRound,
   ClipboardList,
@@ -31,6 +30,21 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { medicationData } from './medications'
+import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
+import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
+import { defaultCalendarMonth, defaultScheduleEntries } from './data/schedules/defaultSchedule'
+import {
+  colorForShiftType,
+  createDraftShift,
+  defaultWorktimeSettings,
+  formatHours,
+  normalizeWorktimeEntries,
+  recalculateEntry,
+  shiftColors,
+  shiftTypes,
+  summarizeWorktime,
+  worktimeStorageKeys,
+} from './data/worktime/worktime'
 
 const USERS = [
   {
@@ -65,7 +79,7 @@ const sops = [
   { title: 'Schmerztherapie', subtitle: 'SOP Platzhalter', icon: HeartPulse, color: 'red' },
   { title: 'Traumaversorgung', subtitle: 'SOP Platzhalter', icon: AlertTriangle, color: 'orange' },
   { title: 'Hygiene & Desinfektion', subtitle: 'SOP Platzhalter', icon: ShieldCheck, color: 'violet' },
-  { title: 'Dokumentation & Übergabe', subtitle: 'SOP Platzhalter', icon: ClipboardList, color: 'blue' },
+  { title: 'Dokumentation & Ãœbergabe', subtitle: 'SOP Platzhalter', icon: ClipboardList, color: 'blue' },
 ]
 
 const nunAlgorithms = [
@@ -75,27 +89,20 @@ const nunAlgorithms = [
   { title: 'Schlaganfall (Stroke)', subtitle: 'NUN Algorithmus', icon: Stethoscope, color: 'violet' },
   { title: 'Anaphylaxie', subtitle: 'NUN Algorithmus', icon: AlertTriangle, color: 'orange' },
   { title: 'Sepsis', subtitle: 'NUN Algorithmus', icon: HeartPulse, color: 'green' },
-  { title: 'Hypoglykämie', subtitle: 'NUN Algorithmus', icon: Calculator, color: 'green' },
+  { title: 'HypoglykÃ¤mie', subtitle: 'NUN Algorithmus', icon: Calculator, color: 'green' },
   { title: 'Krampfanfall', subtitle: 'NUN Algorithmus', icon: AlertTriangle, color: 'violet' },
 ]
 
 const medicines = [
   ['Adrenalin', 'Katecholamin', 'yellow'],
   ['Amiodaron', 'Antiarrhythmikum', 'red'],
-  ['ASS (Acetylsalicylsäure)', 'Thrombozytenaggregationshemmer', 'green'],
+  ['ASS (AcetylsalicylsÃ¤ure)', 'Thrombozytenaggregationshemmer', 'green'],
   ['Atropin', 'Parasympatholytikum', 'green'],
   ['Clopidogrel', 'Thrombozytenaggregationshemmer', 'red'],
   ['Dexamethason', 'Kortikosteroid', 'green'],
   ['Diazepam', 'Benzodiazepin', 'orange'],
   ['Dobutamin', 'Katecholamin', 'green'],
   ['Epinephrin', 'Katecholamin', 'yellow'],
-]
-
-const shifts = [
-  { date: 'Donnerstag, 16. Mai 2024', time: '07:00 - 19:00', detail: 'RTW 1 | Wache Mitte', type: 'Frühdienst' },
-  { date: 'Freitag, 17. Mai 2024', time: '19:00 - 07:00', detail: 'NEF | Wache Mitte', type: 'Nachtdienst' },
-  { date: 'Samstag, 18. Mai 2024', time: 'Frei', detail: '', type: '-' },
-  { date: 'Sonntag, 19. Mai 2024', time: '07:00 - 19:00', detail: 'RTW 2 | Wache West', type: 'Frühdienst' },
 ]
 
 const contacts = [
@@ -110,7 +117,7 @@ const algorithmSteps = [
   ['Keine Reaktion?\nKeine normale Atmung?', 'red'],
   ['Notruf 112\nAED holen lassen', 'green'],
   ['30 Herzdruckmassagen\n2 Beatmungen', 'white'],
-  ['AED anschließen\nRhythmusanalyse', 'white'],
+  ['AED anschlieÃŸen\nRhythmusanalyse', 'white'],
 ]
 
 const tabs = [
@@ -145,6 +152,7 @@ function App() {
   const [activeScreen, setActiveScreen] = useState('home')
   const [selectedWeight, setSelectedWeight] = useState(70)
   const [activeMedicationName, setActiveMedicationName] = useState(null)
+  const [showSplash, setShowSplash] = useState(true)
   const [favorites, setFavorites] = useState(() => {
     try {
       const stored = window.localStorage.getItem('app2:favorites')
@@ -181,6 +189,11 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('app2:favorites', JSON.stringify(favorites))
   }, [favorites])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowSplash(false), 1800)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   function isFavorite(id) {
     return favorites.includes(id)
@@ -225,6 +238,10 @@ function App() {
     if (screen !== 'redList') {
       setActiveMedicationName(null)
     }
+  }
+
+  if (showSplash) {
+    return <SplashScreen />
   }
 
   if (!currentUser) {
@@ -282,7 +299,7 @@ function LoginScreen({ onLogin, error }) {
           <BriefcaseMedical size={34} />
         </div>
         <h1>Deine Rettung.</h1>
-        <p>Geschützter Zugriff für Retterinnen, Retter und Administration.</p>
+        <p>GeschÃ¼tzter Zugriff fÃ¼r Retterinnen, Retter und Administration.</p>
         <form className="login-form" onSubmit={onLogin}>
           <label htmlFor="login-email">
             <span>E-Mail</span>
@@ -319,11 +336,26 @@ function LoginScreen({ onLogin, error }) {
   )
 }
 
+function SplashScreen() {
+  return (
+    <main className="app-shell">
+      <section className="phone-frame" aria-label="APP 2.0 Ladebildschirm">
+        <div className="phone-screen splash-screen">
+          <div className="splash-content">
+            <strong>APP 2.0</strong>
+            <span>Rettungsdienst</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function StatusBar() {
   return (
     <div className="status-bar">
       <span>09:41</span>
-      <span className="status-icons">▰ WiFi ▰</span>
+      <span className="status-icons">â–° WiFi â–°</span>
     </div>
   )
 }
@@ -331,7 +363,7 @@ function StatusBar() {
 function Header({ title, go, actions }) {
   return (
     <header className="screen-header">
-      <button className="icon-button" type="button" onClick={() => go?.('home')} aria-label="Zurück">
+      <button className="icon-button" type="button" onClick={() => go?.('home')} aria-label="ZurÃ¼ck">
         <ArrowLeft size={22} />
       </button>
       <h2>{title}</h2>
@@ -360,7 +392,7 @@ function HomeScreen({ user, go }) {
           <CalendarDays size={28} />
         </span>
         <span>
-          <small>Nächste Schicht</small>
+          <small>NÃ¤chste Schicht</small>
           <strong>Heute, 07:00 - 19:00 Uhr</strong>
           <em>RTW 1 | {user.station === 'Systemverwaltung' ? 'Wache Mitte' : user.station}</em>
         </span>
@@ -454,7 +486,7 @@ function AlgorithmScreen({ go, isFavorite, toggleFavorite }) {
         go={go}
         actions={<FavoriteButton active={isFavorite(id)} onToggle={() => toggleFavorite(id)} tone="orange" />}
       />
-      <ChipRow items={['Algorithmus', 'Ablauf', 'Maßnahmen', 'Medikamente']} />
+      <ChipRow items={['Algorithmus', 'Ablauf', 'MaÃŸnahmen', 'Medikamente']} />
       <div className="flowchart">
         {algorithmSteps.map(([label, tone]) => (
           <div key={label} className={`flow-box ${tone}`}>
@@ -478,16 +510,16 @@ function AlgorithmScreen({ go, isFavorite, toggleFavorite }) {
             <span>1 Schock</span>
             <span>200 J</span>
           </div>
-          <div className="cycle">↻</div>
+          <div className="cycle">â†»</div>
         </div>
         <div className="split-row">
           <div className="flow-box small">
-            <span>Sofort weiterführen:</span>
-            <span>30:2 für 2 Minuten</span>
+            <span>Sofort weiterfÃ¼hren:</span>
+            <span>30:2 fÃ¼r 2 Minuten</span>
           </div>
           <div className="flow-box small">
-            <span>Sofort weiterführen:</span>
-            <span>30:2 für 2 Minuten</span>
+            <span>Sofort weiterfÃ¼hren:</span>
+            <span>30:2 fÃ¼r 2 Minuten</span>
           </div>
         </div>
       </div>
@@ -496,49 +528,165 @@ function AlgorithmScreen({ go, isFavorite, toggleFavorite }) {
   )
 }
 
-function CalculatorScreen({ go, weight, setWeight, dose }) {
+function CalculatorScreen({ go, weight, setWeight }) {
+  const [activeTool, setActiveTool] = useState('medication')
+  const [patientGroup, setPatientGroup] = useState('adult')
+  const [ageYears, setAgeYears] = useState(40)
+  const [ageMonths, setAgeMonths] = useState(0)
+  const [selectedMedicationId, setSelectedMedicationId] = useState('adrenalin')
+  const [selectedRuleId, setSelectedRuleId] = useState('adrenalin-cpr-adult-iv-io')
+  const [rangeMode, setRangeMode] = useState('default')
+  const [customConcentration, setCustomConcentration] = useState('1')
+
+  const availableMedications = [...new Map(medicationCalculatorRules.map((rule) => [rule.medicationId, rule.name])).entries()]
+  const medicationRules = medicationCalculatorRules.filter((rule) => rule.medicationId === selectedMedicationId)
+  const selectedRule = medicationCalculatorRules.find((rule) => rule.id === selectedRuleId) || medicationRules[0]
+  const concentration = selectedRule?.requiresConcentrationInput ? Number(customConcentration) : selectedRule?.concentrationMgPerMl
+  const result = selectedRule
+    ? calculateMedicationDose({ rule: selectedRule, weightKg: weight, ageYears, ageMonths, concentrationMgPerMl: concentration, rangeMode })
+    : null
+
+  function selectMedication(id) {
+    const firstRule = medicationCalculatorRules.find((rule) => rule.medicationId === id)
+    setSelectedMedicationId(id)
+    setSelectedRuleId(firstRule.id)
+    setPatientGroup(firstRule.patientGroup === 'child' ? 'child' : 'adult')
+    setRangeMode('default')
+    setCustomConcentration(firstRule.concentrationMgPerMl || '1')
+  }
+
+  function selectRule(id) {
+    const nextRule = medicationCalculatorRules.find((rule) => rule.id === id)
+    setSelectedRuleId(id)
+    setPatientGroup(nextRule.patientGroup === 'child' ? 'child' : patientGroup)
+    setRangeMode('default')
+    setCustomConcentration(nextRule.concentrationMgPerMl || '1')
+  }
+
+  function resetCalculator() {
+    setPatientGroup('adult')
+    setAgeYears(40)
+    setAgeMonths(0)
+    setWeight(70)
+    setSelectedMedicationId('adrenalin')
+    setSelectedRuleId('adrenalin-cpr-adult-iv-io')
+    setRangeMode('default')
+    setCustomConcentration('1')
+  }
+
+  if (activeTool !== 'medication') {
+    return (
+      <div className="screen-content">
+        <Header title={calculatorTools.find((tool) => tool.id === activeTool)?.label} go={go} actions={<Settings size={20} />} />
+        <CalculatorToolGrid activeTool={activeTool} onSelect={setActiveTool} />
+        <div className="calculator-status">
+          <strong>Funktionsstatus</strong>
+          <p>Dieser Rechnerbereich ist vorbereitet und öffnet bereits einen eigenen Screen. Die fachliche Rechenlogik wird datengetrieben ergänzt, sobald geprüfte Regeln vorliegen.</p>
+          <button type="button" onClick={() => setActiveTool('medication')}>Zum Medikamentenrechner</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="screen-content">
       <Header title="Medikamentenrechner" go={go} actions={<Settings size={20} />} />
-      <SegmentedControl items={['Gewicht', 'Alter', 'BSA']} />
-      <div className="calc-panel">
-        <label>Patientengewicht</label>
-        <div className="weight-readout">
-          <strong>{weight}</strong>
-          <span>kg</span>
-        </div>
-        <div className="stepper">
-          <button type="button" onClick={() => setWeight(Math.max(1, weight - 5))}>−</button>
-          <button type="button" onClick={() => setWeight(weight + 5)}>+</button>
-        </div>
+      <CalculatorToolGrid activeTool={activeTool} onSelect={setActiveTool} />
+      <div className="calculator-safety">
+        <strong>Berechnung ersetzt keine Prüfung der gültigen SOP/NUN und keine fachliche Verantwortung.</strong>
+        <span>Vor Gabe: richtiger Patient, richtiges Medikament, richtige Dosis, richtiger Applikationsweg, richtige Zeit.</span>
+        {patientGroup === 'child' && <b>Pädiatrische Dosierung prüfen.</b>}
       </div>
-      <label className="field-label">
-        Medikament wählen
-        <button className="select-like" type="button">
-          Adrenalin (1 mg/ml)
-          <ChevronDown size={18} />
-        </button>
-      </label>
-      <div className="dose-card">
+      <div className="calculator-form">
+        <label>
+          Patientengruppe
+          <select value={patientGroup} onChange={(event) => setPatientGroup(event.target.value)}>
+            <option value="adult">Erwachsener</option>
+            <option value="child">Kind</option>
+          </select>
+        </label>
+        <div className="calculator-grid">
+          <label>Alter Jahre<input inputMode="numeric" value={ageYears} onChange={(event) => setAgeYears(Number(event.target.value))} /></label>
+          <label>Monate<input inputMode="numeric" value={ageMonths} onChange={(event) => setAgeMonths(Number(event.target.value))} /></label>
+          <label>Gewicht kg<input inputMode="decimal" value={weight} onChange={(event) => setWeight(Number(event.target.value))} /></label>
+        </div>
+        <label>
+          Medikament
+          <select value={selectedMedicationId} onChange={(event) => selectMedication(event.target.value)}>
+            {availableMedications.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+        </label>
+        <label>
+          Indikation / Profil
+          <select value={selectedRule.id} onChange={(event) => selectRule(event.target.value)}>
+            {medicationRules.map((rule) => <option key={rule.id} value={rule.id}>{rule.indication} · {rule.route}</option>)}
+          </select>
+        </label>
+        <label>Applikationsweg<input value={selectedRule.route} readOnly /></label>
+        <label>
+          Konzentration / Ampulle
+          <input
+            inputMode="decimal"
+            value={selectedRule.requiresConcentrationInput ? customConcentration : selectedRule.concentrationLabel || selectedRule.concentrationMgPerMl || 'zu prüfen'}
+            onChange={(event) => setCustomConcentration(event.target.value)}
+            readOnly={!selectedRule.requiresConcentrationInput}
+          />
+        </label>
+        {selectedRule.doseType === 'mg_per_kg_range' && (
+          <div className="range-choice">
+            {['min', 'default', 'max'].map((mode) => (
+              <button key={mode} type="button" className={rangeMode === mode ? 'active' : ''} onClick={() => setRangeMode(mode)}>
+                {mode === 'min' ? 'Min' : mode === 'max' ? 'Max' : 'Standard'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className={`dose-card ${result?.blocked ? 'blocked' : ''}`}>
         <span>Berechnung</span>
-        <strong>0,01 mg / kg</strong>
-        <div>
-          <span>Einzeldosis</span>
-          <b>{dose} mg</b>
-        </div>
-        <em>= {dose} ml</em>
+        <strong>{result?.blocked ? 'Zu prüfen' : result?.doseLabel}</strong>
+        {result?.doseRange && <small>Dosisbereich: {formatNumber(result.doseRange.minMg)}-{formatNumber(result.doseRange.maxMg)} mg</small>}
+        <div><span>Dosis</span><b>{result?.blocked ? '-' : `${formatNumber(result?.doseMg)} mg`}</b></div>
+        <div><span>Volumen</span><b>{result?.volumeMl === null || result?.blocked ? '-' : `${formatNumber(result.volumeMl)} ml`}</b></div>
+        <div><span>Konzentration</span><b>{selectedRule.concentrationLabel || (result?.concentrationMgPerMl ? `${formatNumber(result.concentrationMgPerMl)} mg/ml` : 'Eingabe nötig')}</b></div>
+        <div><span>Maximaldosis</span><b>{selectedRule.maxDoseMg ? `${formatNumber(selectedRule.maxDoseMg)} mg` : '-'}</b></div>
         <hr />
-        <span>Standardverdünnung</span>
-        <small>1 mg in 10 ml (1:10.000)</small>
+        <span>Hinweise</span>
+        {[...(result?.warnings || []), ...selectedRule.notes].map((note) => <small key={note}>{note}</small>)}
+        <hr />
+        <span>Quelle</span>
+        <small>{selectedRule.source} · Version: {selectedRule.version}{selectedRule.sourcePage ? ` · Seite ${selectedRule.sourcePage}` : ''}</small>
       </div>
-      <div className="result-dose">
-        <span>Gabe</span>
-        <strong>{dose} ml i.v.</strong>
+      <div className="calculator-actions">
+        <button type="button" disabled={result?.blocked}>Berechnung übernehmen</button>
+        <button type="button" onClick={resetCalculator}>Zurücksetzen</button>
       </div>
     </div>
   )
 }
 
+const calculatorTools = [
+  { id: 'medication', label: 'Medikamentenrechner' },
+  { id: 'child-dose', label: 'Kinderdosis' },
+  { id: 'perfusor', label: 'Perfusor' },
+  { id: 'gcs', label: 'GCS' },
+  { id: 'news2', label: 'NEWS2' },
+  { id: 'qsofa', label: 'qSOFA' },
+  { id: 'bmi', label: 'BMI' },
+  { id: 'burn', label: 'Verbrennung' },
+]
+
+function CalculatorToolGrid({ activeTool, onSelect }) {
+  return (
+    <div className="calculator-tool-grid">
+      {calculatorTools.map((tool) => (
+        <button key={tool.id} type="button" className={activeTool === tool.id ? 'active' : ''} onClick={() => onSelect(tool.id)}>
+          {tool.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, clearInitialMedication }) {
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('Alle')
@@ -767,46 +915,432 @@ function medicineColor(group) {
 }
 
 function ScheduleScreen({ go }) {
+  const [calendarView, setCalendarView] = useState('month')
+  const [scheduleSection, setScheduleSection] = useState('calendar')
+  const [selectedDate, setSelectedDate] = useState(`${defaultCalendarMonth}-15`)
+  const [showAddShift, setShowAddShift] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [draftShift, setDraftShift] = useState(() => createDraftShift(`${defaultCalendarMonth}-15`))
+  const [worktimeSettings, setWorktimeSettings] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem(worktimeStorageKeys.settings)
+      return stored ? { ...defaultWorktimeSettings, ...JSON.parse(stored) } : defaultWorktimeSettings
+    } catch {
+      return defaultWorktimeSettings
+    }
+  })
+  const [plannedShifts, setPlannedShifts] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem(worktimeStorageKeys.entries)
+      if (stored) {
+        return normalizeWorktimeEntries(JSON.parse(stored))
+      }
+
+      const legacyStored = window.localStorage.getItem('app2:shifts')
+      if (legacyStored) {
+        return normalizeWorktimeEntries(JSON.parse(legacyStored))
+      }
+
+      return normalizeWorktimeEntries(defaultScheduleEntries)
+    } catch {
+      return normalizeWorktimeEntries(defaultScheduleEntries)
+    }
+  })
+
+  useEffect(() => {
+    window.localStorage.setItem(worktimeStorageKeys.entries, JSON.stringify(plannedShifts))
+  }, [plannedShifts])
+
+  useEffect(() => {
+    window.localStorage.setItem(worktimeStorageKeys.settings, JSON.stringify(worktimeSettings))
+  }, [worktimeSettings])
+
+  const calendarDays = useMemo(() => buildCalendarDays(worktimeSettings.month), [worktimeSettings.month])
+  const summary = useMemo(() => summarizeWorktime(plannedShifts, worktimeSettings), [plannedShifts, worktimeSettings])
+  const selectedDay = calendarDays.find((day) => day.date === selectedDate)
+  const visibleShifts =
+    calendarView === 'day' ? plannedShifts.filter((shift) => shift.date === selectedDate) : plannedShifts
+  const colorByDate = plannedShifts.reduce((colors, shift) => {
+    colors[shift.date] = shiftColor(shift)
+    return colors
+  }, {})
+
+  function updateDraft(field, value) {
+    setDraftShift((current) => {
+      const next = { ...current, [field]: value }
+      if (field === 'shiftType') {
+        next.color = colorForShiftType(value)
+      }
+      return recalculateEntry(next)
+    })
+  }
+
+  function updateSettings(field, value) {
+    setWorktimeSettings((current) => ({ ...current, [field]: value }))
+  }
+
+  function openNewShift() {
+    setScheduleSection('azk')
+    setEditingId(null)
+    setDraftShift(createDraftShift(selectedDate))
+    setShowAddShift(true)
+  }
+
+  function openEditShift(shift) {
+    setScheduleSection('azk')
+    setEditingId(shift.id)
+    setDraftShift({ ...shift })
+    setShowAddShift(true)
+  }
+
+  function handleAddShift(event) {
+    event.preventDefault()
+    const preparedShift = recalculateEntry({
+      ...draftShift,
+      id: editingId || `shift-${draftShift.date}-${Date.now()}`,
+      date: draftShift.date || selectedDate,
+      breakMinutes: Number(draftShift.breakMinutes || 0),
+      plannedHours: draftShift.plannedHours,
+      countedHours: draftShift.countedHours,
+      color: draftShift.color || colorForShiftType(draftShift.shiftType),
+    })
+
+    setPlannedShifts((current) =>
+      editingId ? current.map((shift) => (shift.id === editingId ? preparedShift : shift)) : [...current, preparedShift],
+    )
+    setSelectedDate(preparedShift.date)
+    setCalendarView('day')
+    setShowAddShift(false)
+    setEditingId(null)
+  }
+
   return (
     <div className="screen-content">
-      <Header title="Schichtplan" go={go} actions={<><Plus size={20} /><MoreHorizontal size={20} /></>} />
+      <Header
+        title="Schichtplan"
+        go={go}
+        actions={
+          <>
+            <button
+              className="icon-button"
+              type="button"
+              onClick={openNewShift}
+              aria-label="Dienst hinzufuegen"
+            >
+              <Plus size={20} />
+            </button>
+            <MoreHorizontal size={20} />
+          </>
+        }
+      />
       <div className="month-bar">
         <ChevronRight className="rotate" size={20} />
-        <strong>Mai 2024</strong>
+        <strong>{formatMonth(worktimeSettings.month)}</strong>
         <ChevronRight size={20} />
       </div>
-      <div className="calendar-strip">
-        {['Mo\n13', 'Di\n14', 'Mi\n15', 'Do\n16', 'Fr\n17', 'Sa\n18', 'So\n19'].map((day) => {
-          const [label, num] = day.split('\n')
-          return (
-            <div key={day} className={num === '16' ? 'active-day' : ''}>
-              <span>{label}</span>
-              <strong>{num}</strong>
-              <i />
-            </div>
-          )
-        })}
+      <div className="schedule-section-toggle" aria-label="Dienstplanbereich">
+        <button
+          type="button"
+          className={scheduleSection === 'calendar' ? 'active' : ''}
+          onClick={() => setScheduleSection('calendar')}
+        >
+          Kalender
+        </button>
+        <button
+          type="button"
+          className={scheduleSection === 'azk' ? 'active' : ''}
+          onClick={() => setScheduleSection('azk')}
+        >
+          AZK
+        </button>
       </div>
+      {scheduleSection === 'azk' && (
+        <section className="worktime-account">
+          <div className="worktime-settings">
+            <label>
+              Monat
+              <input value={worktimeSettings.month} onChange={(event) => updateSettings('month', event.target.value)} />
+            </label>
+            <label>
+              Soll
+              <input
+                inputMode="decimal"
+                value={worktimeSettings.monthlyTargetHours}
+                onChange={(event) => updateSettings('monthlyTargetHours', event.target.value)}
+              />
+            </label>
+            <label>
+              Vortrag
+              <input
+                inputMode="decimal"
+                value={worktimeSettings.totalCarryHours}
+                onChange={(event) => updateSettings('totalCarryHours', event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="worktime-summary">
+            <SummaryTile label="Soll" value={`${formatHours(worktimeSettings.monthlyTargetHours)} h`} />
+            <SummaryTile label="Ist" value={`${formatHours(summary.countedHours)} h`} />
+            <SummaryTile label="Geplant" value={`${formatHours(summary.plannedHours)} h`} />
+            <SummaryTile label="TatsÃ¤chlich" value={`${formatHours(summary.actualHours)} h`} />
+            <SummaryTile label="Pause" value={`${formatHours(summary.breakHours)} h`} />
+            <SummaryTile label="Saldo" value={`${formatHours(summary.monthBalance)} h`} tone={summary.monthBalance < 0 ? 'negative' : 'positive'} />
+            <SummaryTile label="Gesamt" value={`${formatHours(summary.totalBalance)} h`} tone={summary.totalBalance < 0 ? 'negative' : 'positive'} />
+            <SummaryTile label="Urlaub" value={summary.vacationDays} />
+            <SummaryTile label="Krank" value={summary.sickDays} />
+            <SummaryTile label="Fortbildung" value={summary.trainingDays} />
+          </div>
+          <button className="azk-add-button" type="button" onClick={openNewShift}>
+            <Plus size={16} />
+            Dienst im AZK erfassen
+          </button>
+        </section>
+      )}
+      <div className="schedule-view-toggle" aria-label="Kalenderansicht">
+        <button
+          type="button"
+          className={calendarView === 'month' ? 'active' : ''}
+          onClick={() => setCalendarView('month')}
+        >
+          Monat
+        </button>
+        <button
+          type="button"
+          className={calendarView === 'day' ? 'active' : ''}
+          onClick={() => setCalendarView('day')}
+        >
+          Tag
+        </button>
+      </div>
+      <div className="calendar-strip">
+        {calendarDays.map((day) => (
+          <button
+            key={day.date}
+            type="button"
+            className={selectedDate === day.date ? 'active-day' : ''}
+            onClick={() => {
+              setSelectedDate(day.date)
+              setCalendarView('day')
+            }}
+          >
+            <span>{day.label}</span>
+            <strong>{day.num}</strong>
+            <i className={`${colorByDate[day.date] || day.marker}-bg`} />
+          </button>
+        ))}
+      </div>
+      {calendarView === 'day' && (
+        <div className="day-summary">
+          <span>Tagansicht</span>
+          <strong>{selectedDay ? `${selectedDay.label}, ${selectedDay.num}. ${formatMonth(worktimeSettings.month)}` : formatDate(selectedDate)}</strong>
+        </div>
+      )}
+      {showAddShift && scheduleSection === 'azk' && (
+        <form className="shift-form" onSubmit={handleAddShift}>
+          <strong>{editingId ? 'Dienst bearbeiten' : 'Dienst eintragen'}</strong>
+          <label>
+            Datum
+            <input type="date" value={draftShift.date} onChange={(event) => updateDraft('date', event.target.value)} />
+          </label>
+          <div className="shift-form-grid">
+            <label>
+              Start
+              <input type="time" value={draftShift.startTime} onChange={(event) => updateDraft('startTime', event.target.value)} />
+            </label>
+            <label>
+              Ende
+              <input type="time" value={draftShift.endTime} onChange={(event) => updateDraft('endTime', event.target.value)} />
+            </label>
+            <label>
+              Pause
+              <input
+                inputMode="numeric"
+                value={draftShift.breakMinutes}
+                onChange={(event) => updateDraft('breakMinutes', event.target.value)}
+              />
+            </label>
+          </div>
+          <label>
+            Diensttyp
+            <select value={draftShift.shiftType} onChange={(event) => updateDraft('shiftType', event.target.value)}>
+              {shiftTypes.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Standort / Wache
+            <input value={draftShift.location} onChange={(event) => updateDraft('location', event.target.value)} />
+          </label>
+          <label>
+            Notizen
+            <input value={draftShift.notes} onChange={(event) => updateDraft('notes', event.target.value)} />
+          </label>
+          <label className="override-toggle">
+            <input
+              type="checkbox"
+              checked={draftShift.manualOverride}
+              onChange={(event) => updateDraft('manualOverride', event.target.checked)}
+            />
+            Berechnung manuell Ã¼berschreiben
+          </label>
+          <div className="worktime-calculation">
+            <span>Geplant <b>{formatHours(draftShift.plannedHours)} h</b></span>
+            <span>TatsÃ¤chlich <b>{formatHours(draftShift.actualHours)} h</b></span>
+            <span>Pause <b>{formatHours(draftShift.breakHours)} h</b></span>
+            <span>Gewertet <b>{formatHours(draftShift.countedHours)} h</b></span>
+          </div>
+          {draftShift.manualOverride && (
+            <div className="shift-form-grid">
+              <label>
+                Geplant
+                <input
+                  inputMode="decimal"
+                  value={draftShift.plannedHours}
+                  onChange={(event) => updateDraft('plannedHours', event.target.value)}
+                />
+              </label>
+              <label>
+                TatsÃ¤chlich
+                <input
+                  inputMode="decimal"
+                  value={draftShift.actualHours}
+                  onChange={(event) => updateDraft('actualHours', event.target.value)}
+                />
+              </label>
+              <label>
+                Gewertet
+                <input
+                  inputMode="decimal"
+                  value={draftShift.countedHours}
+                  onChange={(event) => updateDraft('countedHours', event.target.value)}
+                />
+              </label>
+            </div>
+          )}
+          <div className="shift-color-field">
+            <span>Farbcodierung</span>
+            <div className="shift-color-grid">
+              {shiftColors.map((color) => (
+                <button
+                  key={color.id}
+                  type="button"
+                  className={draftShift.color === color.id ? 'active' : ''}
+                  onClick={() => updateDraft('color', color.id)}
+                  aria-label={`Farbe ${color.label}`}
+                >
+                  <i className={`${color.id}-bg`} />
+                  {color.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="shift-form-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddShift(false)
+                setEditingId(null)
+              }}
+            >
+              Abbrechen
+            </button>
+            <button type="submit">Speichern</button>
+          </div>
+        </form>
+      )}
       <div className="shift-list">
-        {shifts.map((shift) => (
-          <div key={shift.date} className="shift-block">
-            <span>{shift.date}</span>
-            <button type="button">
-              <strong>{shift.time}</strong>
-              {shift.detail && <em>{shift.detail}</em>}
-              <b>{shift.type}</b>
+        {visibleShifts.map((shift, index) => (
+          <div key={`${shift.id}-${index}`} className="shift-block">
+            <span>{formatDate(shift.date)}</span>
+            <button type="button" className={`shift-${shiftColor(shift)}`} onClick={() => openEditShift(shift)}>
+              <strong>{shiftTimeLabel(shift)}</strong>
+              <em>{shift.location || 'Standort offen'}</em>
+              {scheduleSection === 'azk' && (
+                <small>{formatHours(shift.countedHours)} h gewertet Â· Pause {shift.breakMinutes || 0} min</small>
+              )}
+              <b className={`${shiftTypeClass(shift.shiftType)} ${shiftColor(shift)}-text`}>{shift.shiftType}</b>
             </button>
           </div>
         ))}
+        {visibleShifts.length === 0 && <div className="empty-state">Fuer diesen Tag ist noch kein Dienst eingetragen.</div>}
       </div>
       <div className="legend">
-        <span><i className="green-bg" />Frühdienst</span>
-        <span><i className="orange-bg" />Spätdienst</span>
-        <span><i className="blue-bg" />Nachtdienst</span>
-        <span><i className="gray-bg" />Frei</span>
+        {shiftColors.map((color) => (
+          <span key={color.id}>
+            <i className={`${color.id}-bg`} />
+            {color.label}
+          </span>
+        ))}
       </div>
+      {scheduleSection === 'azk' && (
+        <div className="future-tools">
+          <span>Vorbereitet: PDF/CSV Export</span>
+          <span>Backup / Sync</span>
+          <span>Kalenderimport</span>
+          <span>Dienstbeginn-Erinnerung</span>
+        </div>
+      )}
     </div>
   )
+}
+
+function shiftTypeClass(type) {
+  if (type === 'Nachtdienst') {
+    return 'night'
+  }
+  if (type === 'Frei' || type === '-') {
+    return 'free'
+  }
+  return 'day'
+}
+
+function shiftColor(shift) {
+  if (shift.color) {
+    return shift.color
+  }
+  return colorForShiftType(shift.shiftType || shift.type)
+}
+
+function shiftTimeLabel(shift) {
+  if (!shift.startTime && !shift.endTime) {
+    return shift.shiftType
+  }
+  return `${shift.startTime || '--:--'} - ${shift.endTime || '--:--'}`
+}
+
+function SummaryTile({ label, value, tone = '' }) {
+  return (
+    <span className={tone}>
+      <small>{label}</small>
+      <strong>{value}</strong>
+    </span>
+  )
+}
+
+function buildCalendarDays(month) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const daysInMonth = new Date(year, monthNumber, 0).getDate()
+  return Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1
+    const date = `${year}-${String(monthNumber).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const weekday = new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))
+    return { label: weekday.replace('.', ''), num: String(day), date, marker: 'green' }
+  })
+}
+
+function formatMonth(month) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date(year, monthNumber - 1, 1))
+}
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat('de-DE', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(`${date}T12:00:00`))
 }
 
 function EmergencyContactsScreen({ go }) {
@@ -841,7 +1375,7 @@ function FavoritesScreen({ go, favoriteItems, openFavorite, toggleFavorite }) {
             <button type="button" onClick={() => openFavorite(item)}>
               <span>
                 {item.title}
-                <em>{item.type} · {item.subtitle}</em>
+                <em>{item.type} Â· {item.subtitle}</em>
               </span>
             </button>
             <FavoriteButton active onToggle={() => toggleFavorite(item.id)} />
@@ -899,7 +1433,7 @@ function AdminScreen({ go }) {
         <UserRoundCog size={34} />
         <span>
           <strong>Admin Zugriff aktiv</strong>
-          <em>Bereit für spätere Updates und Ergänzungen.</em>
+          <em>Bereit fÃ¼r spÃ¤tere Updates und ErgÃ¤nzungen.</em>
         </span>
       </div>
       <div className="item-list">
@@ -910,7 +1444,7 @@ function AdminScreen({ go }) {
             </span>
             <span>
               <strong>{module}</strong>
-              <em>Platzhalter für Bearbeitung</em>
+              <em>Platzhalter fÃ¼r Bearbeitung</em>
             </span>
             <ChevronRight size={20} />
           </button>
@@ -1025,18 +1559,6 @@ function ChipRow({ items, activeItem, onSelect }) {
           className={(activeItem ?? items[0]) === item || (!activeItem && index === 0) ? 'active' : ''}
           onClick={() => onSelect?.(item)}
         >
-          {item}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function SegmentedControl({ items }) {
-  return (
-    <div className="segmented-control">
-      {items.map((item, index) => (
-        <button key={item} type="button" className={index === 0 ? 'active' : ''}>
           {item}
         </button>
       ))}

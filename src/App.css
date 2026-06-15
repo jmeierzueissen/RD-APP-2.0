@@ -27,7 +27,8 @@
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -42,6 +43,9 @@ button {
   display: grid;
   place-items: center;
   padding: 28px;
+  background:
+    linear-gradient(180deg, rgba(2, 8, 16, 0.42), rgba(2, 8, 16, 0.82)),
+    url("/notruf-112-background.png") center / cover no-repeat fixed;
 }
 
 .phone-frame,
@@ -56,14 +60,61 @@ button {
 }
 
 .phone-screen {
+  position: relative;
   min-height: 794px;
   border-radius: 28px;
   overflow: hidden;
   background:
+    linear-gradient(180deg, rgba(7, 17, 27, 0.56) 0%, rgba(4, 11, 18, 0.74) 100%),
     radial-gradient(circle at 50% -10%, rgba(22, 119, 255, 0.12), transparent 28%),
+    url("/notruf-112-background.png") center / cover no-repeat,
     linear-gradient(180deg, var(--screen) 0%, var(--screen-deep) 100%);
   display: flex;
   flex-direction: column;
+}
+
+.phone-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(4, 10, 18, 0.18), rgba(4, 10, 18, 0.46)),
+    url("/notruf-112-background.png") center / cover no-repeat;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.phone-screen > * {
+  position: relative;
+  z-index: 1;
+}
+
+.splash-screen {
+  min-height: 794px;
+  justify-content: flex-end;
+  background:
+    linear-gradient(180deg, rgba(4, 10, 18, 0.03) 0%, rgba(4, 10, 18, 0.36) 52%, rgba(4, 10, 18, 0.88) 100%),
+    url("/notruf-112-background.png") center / cover no-repeat;
+}
+
+.splash-content {
+  display: grid;
+  gap: 4px;
+  padding: 0 24px 48px;
+  text-transform: uppercase;
+  font-style: italic;
+}
+
+.splash-content strong {
+  color: #fff;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.splash-content span {
+  color: var(--red);
+  font-size: 18px;
+  font-weight: 900;
 }
 
 .status-bar {
@@ -714,6 +765,126 @@ button {
   font-size: 18px;
 }
 
+.calculator-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.calculator-tool-grid button {
+  min-height: 36px;
+  padding: 7px 8px;
+  color: var(--muted);
+  background: rgba(18, 28, 40, 0.94);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.calculator-tool-grid button.active {
+  color: #fff;
+  background: var(--blue);
+  border-color: var(--blue);
+}
+
+.calculator-safety,
+.calculator-status {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 10px;
+  color: #dbe7f5;
+  border-radius: var(--radius);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.calculator-safety {
+  background: rgba(255, 77, 82, 0.14);
+  border: 1px solid rgba(255, 77, 82, 0.48);
+}
+
+.calculator-status {
+  background: rgba(20, 119, 255, 0.1);
+  border: 1px solid rgba(20, 119, 255, 0.28);
+}
+
+.calculator-safety b {
+  color: var(--yellow);
+}
+
+.calculator-form {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.calculator-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.calculator-form input,
+.calculator-form select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  color: #fff;
+  background: #0b1520;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: 0;
+}
+
+.calculator-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.range-choice,
+.calculator-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.range-choice button,
+.calculator-actions button,
+.calculator-status button {
+  min-height: 38px;
+  color: #fff;
+  background: rgba(20, 119, 255, 0.18);
+  border: 1px solid rgba(20, 119, 255, 0.42);
+  border-radius: 7px;
+  font-weight: 800;
+}
+
+.range-choice button.active {
+  background: var(--blue);
+}
+
+.calculator-actions {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 12px;
+}
+
+.calculator-actions button:disabled {
+  color: var(--faint);
+  background: rgba(30, 38, 48, 0.75);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
+.dose-card.blocked {
+  border: 1px solid rgba(255, 211, 61, 0.45);
+  background: rgba(255, 211, 61, 0.08);
+}
+
 .medicine-row {
   grid-template-columns: 20px minmax(0, 1fr) auto;
   padding: 0 0 0 2px;
@@ -810,6 +981,10 @@ button {
   background: var(--red);
 }
 
+.red-bg {
+  background: var(--red);
+}
+
 .dot.green,
 .green-bg {
   background: var(--green);
@@ -821,6 +996,10 @@ button {
 }
 
 .dot.violet {
+  background: var(--violet);
+}
+
+.violet-bg {
   background: var(--violet);
 }
 
@@ -866,16 +1045,18 @@ button {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
-.calendar-strip div {
-  min-height: 56px;
+.calendar-strip button {
+  min-height: 48px;
   display: grid;
   justify-items: center;
   align-content: center;
   gap: 4px;
   color: var(--muted);
+  background: transparent;
+  border-radius: var(--radius);
   font-size: 11px;
 }
 
@@ -892,12 +1073,333 @@ button {
   background: var(--green);
 }
 
+.calendar-strip i.green-bg,
+.legend i.green-bg {
+  background: var(--green);
+}
+
+.calendar-strip i.red-bg,
+.legend i.red-bg {
+  background: var(--red);
+}
+
+.calendar-strip i.yellow-bg,
+.legend i.yellow-bg {
+  background: var(--yellow);
+}
+
+.calendar-strip i.blue-bg,
+.legend i.blue-bg {
+  background: var(--blue);
+}
+
+.calendar-strip i.violet-bg,
+.legend i.violet-bg {
+  background: var(--violet);
+}
+
+.calendar-strip i.orange-bg,
+.legend i.orange-bg {
+  background: var(--orange);
+}
+
+.calendar-strip i.gray-bg,
+.legend i.gray-bg {
+  background: #8b94a1;
+}
+
 .calendar-strip .active-day strong {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: grid;
   place-items: center;
+  background: var(--blue);
+}
+
+.worktime-account {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.schedule-section-toggle {
+  height: 38px;
+  display: grid;
+  grid-template-columns: 1fr 0.72fr;
+  gap: 6px;
+  padding: 4px;
+  margin: -4px 0 12px;
+  background: rgba(12, 20, 30, 0.9);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.schedule-section-toggle button {
+  color: var(--muted);
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.schedule-section-toggle button.active {
+  color: #fff;
+  background: var(--blue);
+}
+
+.worktime-settings {
+  display: grid;
+  grid-template-columns: 1.2fr 0.65fr 0.65fr;
+  gap: 8px;
+}
+
+.worktime-settings label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.worktime-settings input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  color: #fff;
+  background: #0b1520;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: 0;
+}
+
+.worktime-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.worktime-summary span {
+  min-height: 54px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  padding: 8px 10px;
+  background: rgba(18, 28, 40, 0.88);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.worktime-summary small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.worktime-summary strong {
+  font-size: 15px;
+}
+
+.worktime-summary .positive strong {
+  color: var(--green);
+}
+
+.worktime-summary .negative strong {
+  color: var(--red);
+}
+
+.azk-add-button {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  background: rgba(20, 119, 255, 0.2);
+  border: 1px solid rgba(20, 119, 255, 0.45);
+  border-radius: var(--radius);
+  font-weight: 800;
+}
+
+.schedule-view-toggle {
+  height: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+  padding: 4px;
+  margin: -4px 0 12px;
+  background: rgba(12, 20, 30, 0.86);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.schedule-view-toggle button {
+  color: var(--muted);
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.schedule-view-toggle button.active {
+  color: #fff;
+  background: var(--blue);
+}
+
+.day-summary {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: rgba(18, 28, 40, 0.72);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.day-summary span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.day-summary strong {
+  font-size: 14px;
+}
+
+.shift-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  background: rgba(18, 28, 40, 0.94);
+  border: 1px solid rgba(20, 119, 255, 0.42);
+  border-radius: var(--radius);
+}
+
+.shift-form > strong {
+  font-size: 14px;
+}
+
+.shift-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.shift-form input,
+.shift-form select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  color: #fff;
+  background: #0b1520;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: 0;
+}
+
+.shift-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.override-toggle {
+  min-height: 34px;
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px !important;
+  padding: 8px 10px;
+  color: var(--text) !important;
+  background: rgba(11, 21, 32, 0.8);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.override-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.worktime-calculation {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+}
+
+.worktime-calculation span {
+  min-height: 40px;
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  color: var(--muted);
+  background: rgba(11, 21, 32, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 10px;
+}
+
+.worktime-calculation b {
+  color: #fff;
+  font-size: 13px;
+}
+
+.shift-color-field {
+  display: grid;
+  gap: 7px;
+}
+
+.shift-color-field > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.shift-color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+
+.shift-color-grid button {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--muted);
+  background: #0b1520;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.shift-color-grid button.active {
+  color: #fff;
+  border-color: var(--blue);
+  background: rgba(20, 119, 255, 0.18);
+}
+
+.shift-color-grid i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.shift-form-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.shift-form-actions button {
+  height: 38px;
+  color: #fff;
+  background: #101a25;
+  border-radius: 7px;
+  font-weight: 700;
+}
+
+.shift-form-actions button:last-child {
   background: var(--blue);
 }
 
@@ -912,6 +1414,7 @@ button {
   padding: 10px 12px;
   display: grid;
   grid-template-columns: 1fr auto;
+  gap: 3px 10px;
   align-items: center;
   text-align: left;
   color: var(--text);
@@ -920,15 +1423,80 @@ button {
   background: rgba(18, 28, 40, 0.94);
 }
 
+.shift-block button.shift-green {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.shift-block button.shift-red {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.shift-block button.shift-yellow {
+  box-shadow: inset 3px 0 0 var(--yellow);
+}
+
+.shift-block button.shift-blue {
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.shift-block button.shift-violet {
+  box-shadow: inset 3px 0 0 var(--violet);
+}
+
+.shift-block button.shift-orange {
+  box-shadow: inset 3px 0 0 var(--orange);
+}
+
 .shift-block em {
   color: var(--muted);
   font-style: normal;
 }
 
+.shift-block small {
+  grid-column: 1 / -1;
+  color: var(--faint);
+  font-size: 10px;
+}
+
 .shift-block b {
   grid-row: span 2;
-  color: var(--green);
   font-size: 12px;
+}
+
+.shift-block b.day {
+  color: var(--green);
+}
+
+.shift-block b.night {
+  color: var(--blue);
+}
+
+.shift-block b.free {
+  color: var(--muted);
+}
+
+.shift-block b.green-text {
+  color: var(--green);
+}
+
+.shift-block b.red-text {
+  color: var(--red);
+}
+
+.shift-block b.yellow-text {
+  color: var(--yellow);
+}
+
+.shift-block b.blue-text {
+  color: var(--blue);
+}
+
+.shift-block b.violet-text {
+  color: var(--violet);
+}
+
+.shift-block b.orange-text {
+  color: var(--orange);
 }
 
 .legend {
@@ -943,6 +1511,22 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.future-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.future-tools span {
+  padding: 6px 8px;
+  color: var(--muted);
+  background: rgba(11, 21, 32, 0.74);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 10px;
 }
 
 .profile-card,
@@ -1015,6 +1599,8 @@ button {
 
 .login-page {
   background:
+    linear-gradient(180deg, rgba(2, 8, 16, 0.46), rgba(2, 8, 16, 0.84)),
+    url("/notruf-112-background.png") center / cover no-repeat fixed,
     radial-gradient(circle at 20% 15%, rgba(20, 119, 255, 0.18), transparent 28%),
     radial-gradient(circle at 80% 30%, rgba(255, 77, 82, 0.12), transparent 25%),
     #03070c;
@@ -1024,7 +1610,10 @@ button {
   min-height: auto;
   padding: 28px;
   border-radius: 28px;
-  background: linear-gradient(180deg, #0b1520, #050a10);
+  background:
+    linear-gradient(180deg, rgba(11, 21, 32, 0.9), rgba(5, 10, 16, 0.95)),
+    url("/notruf-112-background.png") center / cover no-repeat,
+    linear-gradient(180deg, #0b1520, #050a10);
 }
 
 .brand-mark {
