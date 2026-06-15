@@ -1,6 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import {
-  AlertTriangle,
   ArrowLeft,
   Bell,
   BriefcaseMedical,
@@ -11,7 +10,6 @@ import {
   ClipboardList,
   FileText,
   Filter,
-  HeartPulse,
   Home,
   KeyRound,
   Lock,
@@ -24,12 +22,12 @@ import {
   Settings,
   ShieldCheck,
   Star,
-  Stethoscope,
   UserRoundCog,
   Workflow,
 } from 'lucide-react'
 import './App.css'
 import { medicationData } from './medications'
+import { nunIndex } from './data/algorithms/nun/nunIndex'
 import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
 import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
 import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
@@ -72,17 +70,6 @@ const quickActions = [
   { id: 'emergency', label: 'Notfall-\nnummern', icon: Phone, color: 'yellow' },
   { id: 'favorites', label: 'Favoriten', icon: Star, color: 'violet' },
   { id: 'admin', label: 'Tools', icon: BriefcaseMedical, color: 'gray' },
-]
-
-const nunAlgorithms = [
-  { title: 'Reanimation (Erwachsene)', subtitle: 'NUN / ERC 2021', icon: Workflow, color: 'blue' },
-  { title: 'Reanimation (Kind)', subtitle: 'NUN / ERC 2021', icon: Workflow, color: 'blue' },
-  { title: 'ACS (STEMI / NSTEMI)', subtitle: 'NUN Algorithmus', icon: HeartPulse, color: 'red' },
-  { title: 'Schlaganfall (Stroke)', subtitle: 'NUN Algorithmus', icon: Stethoscope, color: 'violet' },
-  { title: 'Anaphylaxie', subtitle: 'NUN Algorithmus', icon: AlertTriangle, color: 'orange' },
-  { title: 'Sepsis', subtitle: 'NUN Algorithmus', icon: HeartPulse, color: 'green' },
-  { title: 'HypoglykÃ¤mie', subtitle: 'NUN Algorithmus', icon: Calculator, color: 'green' },
-  { title: 'Krampfanfall', subtitle: 'NUN Algorithmus', icon: AlertTriangle, color: 'violet' },
 ]
 
 const medicines = [
@@ -166,12 +153,12 @@ function App() {
   const favoriteItems = useMemo(() => {
     const catalog = [
       ...sopIndex.map((item) => ({ id: favoriteId('sop', item.title), type: 'SOP', title: `${item.label} ${item.title}`, subtitle: `Seite ${formatPages(item.pages)}`, screen: 'sops' })),
-      ...nunAlgorithms.map((item) => ({
+      ...nunIndex.map((item) => ({
         id: favoriteId('nun', item.title),
         type: 'NUN',
-        title: item.title,
-        subtitle: item.subtitle,
-        screen: item.title === 'Reanimation (Erwachsene)' ? 'algorithm' : 'nun',
+        title: `${item.label} ${item.title}`,
+        subtitle: `${item.category} · ${formatPages(item.pages)}`,
+        screen: 'nun',
       })),
       ...medicationData.map((item) => ({
         id: favoriteId('medication', item.name),
@@ -510,41 +497,101 @@ function AlgorithmViewerScreen({ sop, page, setPage, zoom, setZoom, onBack }) {
         <iframe title={`${sop.label} ${sop.title} Seite ${page}`} src={pdfUrl} />
       </div>
       <div className="pdf-missing-note">
-        Original-PDF geladen aus <strong>{sop.pdfFile}</strong>. Die Ansicht ist scrollfähig, zoombar und über Vollbild separat öffnbar.
+        PDF-Datei: <strong>{sop.pdfFile}</strong>. Die Ansicht ist scrollfähig, zoombar und über Vollbild separat öffnbar.
       </div>
     </div>
   )
 }
 
 function NunScreen({ go, isFavorite, toggleFavorite }) {
+  const [query, setQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState('Alle')
+  const [selectedNun, setSelectedNun] = useState(null)
+  const [currentPage, setCurrentPage] = useState(null)
+  const [zoom, setZoom] = useState(100)
+  const search = query.trim().toLowerCase()
+  const filteredItems = nunIndex.filter((item) => {
+    const haystack = [item.label, item.title, item.category, ...item.keywords].join(' ').toLowerCase()
+    const matchesSearch = !search || haystack.includes(search)
+    const matchesFilter = activeFilter === 'Alle' || nunMatchesFilter(item, activeFilter)
+    return matchesSearch && matchesFilter
+  })
+  const groupedItems = groupByCategory(filteredItems)
+
+  function openNun(item) {
+    setSelectedNun(item)
+    setCurrentPage(item.primaryPage)
+    setZoom(100)
+  }
+
+  if (selectedNun) {
+    return (
+      <AlgorithmViewerScreen
+        sop={selectedNun}
+        page={currentPage}
+        setPage={setCurrentPage}
+        zoom={zoom}
+        setZoom={setZoom}
+        onBack={() => setSelectedNun(null)}
+      />
+    )
+  }
+
   return (
     <div className="screen-content">
-      <Header title="NUN Algorithmen" go={go} actions={<span />} />
-      <SearchField placeholder="Suche nach NUN Algorithmus" />
-      <ChipRow items={['Alle', 'Reanimation', 'Trauma', 'Kardiologie', 'Neurologie']} />
-      <div className="item-list">
-        {nunAlgorithms.map((item) => {
-          const Icon = item.icon
-          const id = favoriteId('nun', item.title)
-          return (
-            <div key={item.title} className="list-row favorite-row">
-              <button type="button" className="row-main" onClick={() => go('algorithm')}>
-                <span className={`tile-icon ${item.color}`}>
-                  <Icon size={22} />
-                </span>
-                <span>
-                  <strong>{item.title}</strong>
-                  <em>{item.subtitle}</em>
-                </span>
-                <ChevronRight size={20} />
-              </button>
-              <FavoriteButton active={isFavorite(id)} onToggle={() => toggleFavorite(id)} />
+      <Header title="NUN Übersicht" go={go} actions={<span />} />
+      <SearchField placeholder="Suche nach NUN, Kategorie oder Stichwort" value={query} onChange={setQuery} />
+      <ChipRow
+        items={['Alle', 'Reanimation', 'Atemweg / Atmung', 'Kardiologie', 'Neurologie', 'Trauma', 'Pädiatrie', 'Medikamente', 'Übergabe']}
+        activeItem={activeFilter}
+        onSelect={setActiveFilter}
+      />
+      <div className="sop-overview-note nun-note">
+        NUN-Übersicht mit direktem Seitenaufruf. Die Original-Diagramme werden nicht neu gezeichnet oder verändert.
+      </div>
+      <div className="sop-sections">
+        {Object.entries(groupedItems).map(([category, entries]) => (
+          <section key={category} className="sop-section">
+            <h3>{category}</h3>
+            <div className="sop-card-grid">
+              {entries.map((entry) => {
+                const id = favoriteId('nun', entry.title)
+                return (
+                  <div key={entry.id} className="sop-card favorite-row nun-card">
+                    <button type="button" className="sop-card-main" onClick={() => openNun(entry)}>
+                      <span>{entry.label}</span>
+                      <strong>{entry.title}</strong>
+                      <em>{formatPages(entry.pages)}</em>
+                    </button>
+                    <FavoriteButton active={isFavorite(id)} onToggle={() => toggleFavorite(id)} />
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
+          </section>
+        ))}
+        {filteredItems.length === 0 && <div className="empty-state">Kein NUN-Leitfaden gefunden.</div>}
       </div>
     </div>
   )
+}
+
+function nunMatchesFilter(item, filter) {
+  if (filter === 'Medikamente') {
+    return item.category.includes('Medikamente') || item.keywords.some((keyword) => ['Adrenalin', 'Midazolam', 'Esketamin', 'Nalbuphin'].includes(keyword))
+  }
+  if (filter === 'Übergabe') {
+    return item.category.includes('Übergabe') || item.title.includes('Übergabe')
+  }
+  return item.category.includes(filter)
+}
+
+function groupByCategory(items) {
+  return items.reduce((groups, item) => {
+    groups[item.category] = groups[item.category] || []
+    groups[item.category].push(item)
+    return groups
+  }, {})
 }
 
 function AlgorithmScreen({ go, isFavorite, toggleFavorite }) {
