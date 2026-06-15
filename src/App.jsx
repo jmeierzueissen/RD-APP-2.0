@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { medicationData } from './medications'
+import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
 import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
 import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
 import { defaultCalendarMonth, defaultScheduleEntries } from './data/schedules/defaultSchedule'
@@ -71,15 +72,6 @@ const quickActions = [
   { id: 'emergency', label: 'Notfall-\nnummern', icon: Phone, color: 'yellow' },
   { id: 'favorites', label: 'Favoriten', icon: Star, color: 'violet' },
   { id: 'admin', label: 'Tools', icon: BriefcaseMedical, color: 'gray' },
-]
-
-const sops = [
-  { title: 'Atemwegsmanagement', subtitle: 'SOP Platzhalter', icon: BriefcaseMedical, color: 'blue' },
-  { title: 'i.v. Zugang / i.o. Zugang', subtitle: 'SOP Platzhalter', icon: Stethoscope, color: 'green' },
-  { title: 'Schmerztherapie', subtitle: 'SOP Platzhalter', icon: HeartPulse, color: 'red' },
-  { title: 'Traumaversorgung', subtitle: 'SOP Platzhalter', icon: AlertTriangle, color: 'orange' },
-  { title: 'Hygiene & Desinfektion', subtitle: 'SOP Platzhalter', icon: ShieldCheck, color: 'violet' },
-  { title: 'Dokumentation & Ãœbergabe', subtitle: 'SOP Platzhalter', icon: ClipboardList, color: 'blue' },
 ]
 
 const nunAlgorithms = [
@@ -146,6 +138,13 @@ function favoriteId(type, title) {
   return `${type}:${title}`
 }
 
+function formatPages(pages) {
+  if (pages.length === 1) {
+    return `Seite ${pages[0]}`
+  }
+  return `Seiten ${pages[0]}-${pages[pages.length - 1]}`
+}
+
 function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [loginError, setLoginError] = useState('')
@@ -166,7 +165,7 @@ function App() {
   const dose = useMemo(() => (selectedWeight * 0.01).toFixed(2).replace('.', ','), [selectedWeight])
   const favoriteItems = useMemo(() => {
     const catalog = [
-      ...sops.map((item) => ({ id: favoriteId('sop', item.title), type: 'SOP', title: item.title, subtitle: item.subtitle, screen: 'sops' })),
+      ...sopIndex.map((item) => ({ id: favoriteId('sop', item.title), type: 'SOP', title: `${item.label} ${item.title}`, subtitle: `Seite ${formatPages(item.pages)}`, screen: 'sops' })),
       ...nunAlgorithms.map((item) => ({
         id: favoriteId('nun', item.title),
         type: 'NUN',
@@ -415,31 +414,103 @@ function HomeScreen({ user, go }) {
 }
 
 function SopsScreen({ go, isFavorite, toggleFavorite }) {
+  const [query, setQuery] = useState('')
+  const [selectedSop, setSelectedSop] = useState(null)
+  const [currentPage, setCurrentPage] = useState(null)
+  const [zoom, setZoom] = useState(100)
+  const search = query.trim().toLowerCase()
+  const filteredSections = sopSections
+    .map((section) => ({
+      ...section,
+      entries: section.entries.filter((entry) => {
+        const haystack = [entry.label, entry.title, entry.category, ...entry.keywords].join(' ').toLowerCase()
+        return !search || haystack.includes(search)
+      }),
+    }))
+    .filter((section) => section.entries.length > 0)
+
+  function openSop(entry) {
+    setSelectedSop(entry)
+    setCurrentPage(entry.primaryPage)
+    setZoom(100)
+  }
+
+  if (selectedSop) {
+    return (
+      <AlgorithmViewerScreen
+        sop={selectedSop}
+        page={currentPage}
+        setPage={setCurrentPage}
+        zoom={zoom}
+        setZoom={setZoom}
+        onBack={() => setSelectedSop(null)}
+      />
+    )
+  }
+
   return (
     <div className="screen-content">
       <Header title="SOPs" go={go} actions={<span />} />
-      <SearchField placeholder="Suche nach SOP" />
-      <ChipRow items={['Alle', 'Atemweg', 'Trauma', 'Medikation', 'Dokumentation']} />
-      <div className="item-list">
-        {sops.map((item) => {
-          const Icon = item.icon
-          const id = favoriteId('sop', item.title)
-          return (
-            <div key={item.title} className="list-row favorite-row">
-              <button type="button" className="row-main" onClick={() => go('algorithm')}>
-                <span className={`tile-icon ${item.color}`}>
-                  <Icon size={22} />
-                </span>
-                <span>
-                  <strong>{item.title}</strong>
-                  <em>{item.subtitle}</em>
-                </span>
-                <ChevronRight size={20} />
-              </button>
-              <FavoriteButton active={isFavorite(id)} onToggle={() => toggleFavorite(id)} />
+      <SearchField placeholder="Suche nach SOP, Nummer oder Stichwort" value={query} onChange={setQuery} />
+      <div className="sop-overview-note">
+        Versorgungspfad Schnellübersicht nach Original-PDF Seite 3. Die App zeigt keine nachgezeichneten SOP-Diagramme, sondern öffnet die Originalseiten.
+      </div>
+      <div className="sop-sections">
+        {filteredSections.map((section) => (
+          <section key={section.id} className="sop-section">
+            <h3>{section.title}</h3>
+            <div className="sop-card-grid">
+              {section.entries.map((entry) => {
+                const id = favoriteId('sop', entry.title)
+                return (
+                  <div key={entry.id} className="sop-card favorite-row">
+                    <button type="button" className="sop-card-main" onClick={() => openSop(entry)}>
+                      <span>{entry.label}</span>
+                      <strong>{entry.title}</strong>
+                      <em>{formatPages(entry.pages)}</em>
+                    </button>
+                    <FavoriteButton active={isFavorite(id)} onToggle={() => toggleFavorite(id)} />
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
+          </section>
+        ))}
+        {filteredSections.length === 0 && <div className="empty-state">Kein SOP-Pfad gefunden.</div>}
+      </div>
+    </div>
+  )
+}
+
+function AlgorithmViewerScreen({ sop, page, setPage, zoom, setZoom, onBack }) {
+  const pageIndex = sop.pages.indexOf(page)
+  const pdfUrl = `/${sop.pdfFile}#page=${page}&zoom=${zoom}`
+  const canGoBack = pageIndex > 0
+  const canGoForward = pageIndex < sop.pages.length - 1
+
+  return (
+    <div className="screen-content sop-viewer-screen">
+      <Header title={`${sop.label} ${sop.title}`} go={onBack} actions={<FileText size={20} />} />
+      <div className="sop-source">
+        <strong>{sop.source}</strong>
+        <span>{sop.version} · Stand {sop.lastUpdated}</span>
+      </div>
+      <div className="pdf-toolbar">
+        <button type="button" disabled={!canGoBack} onClick={() => setPage(sop.pages[pageIndex - 1])}>Zurück</button>
+        <span>Seite {page}</span>
+        <button type="button" disabled={!canGoForward} onClick={() => setPage(sop.pages[pageIndex + 1])}>Weiter</button>
+      </div>
+      <div className="pdf-toolbar">
+        <button type="button" onClick={() => setZoom(Math.max(60, zoom - 20))}>-</button>
+        <span>{zoom}%</span>
+        <button type="button" onClick={() => setZoom(Math.min(180, zoom + 20))}>+</button>
+        <a href={pdfUrl} target="_blank" rel="noreferrer">Vollbild</a>
+      </div>
+      <div className="pdf-page-frame">
+        <iframe title={`${sop.label} ${sop.title} Seite ${page}`} src={pdfUrl} />
+      </div>
+      <div className="pdf-missing-note">
+        Original-PDF geladen aus <strong>{sop.pdfFile}</strong>. Die Ansicht ist scrollfähig, zoombar und über Vollbild separat öffnbar.
       </div>
     </div>
   )
