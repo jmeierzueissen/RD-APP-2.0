@@ -882,6 +882,8 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
       medication.warnings,
       medication.appNotes,
       medication.calculatorProfiles,
+      medication.sopLinks,
+      medication.nunLinks,
       medication.source,
     ]
       .join(' ')
@@ -909,7 +911,7 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
         onChange={setQuery}
       />
       <ChipRow
-        items={['Alle', 'Reanimation', 'Kardiologie', 'Schock', 'Analgesie', 'Sedierung', 'Atemweg', 'Trauma', 'Antidot']}
+        items={['Alle', 'Reanimation', 'Kardiologie', 'Kreislauf', 'ACS', 'Rhythmusstörung', 'Lungenödem', 'Hypoglykämie', 'Schock', 'Analgesie', 'Sedierung', 'Antiemese', 'Atemweg', 'Asthma', 'COPD', 'Allergie', 'Anaphylaxie', 'Trauma', 'Antidot', 'BtM', 'Kinder', 'NEF / ärztlich']}
         activeItem={activeCategory}
         onSelect={setActiveCategory}
       />
@@ -971,13 +973,26 @@ function medicationMatchesCategory(medication, category) {
 
   const filters = {
     Reanimation: ['reanimation', 'cpr', 'vf', 'pvt'],
-    Kardiologie: ['antiarrhythmikum', 'bradykardie', 'tachykard', 'torsade', 'hypertensiv', 'blutdruck'],
+    Kardiologie: ['kardiologie', 'kardiologisch', 'antiarrhythmikum', 'bradykardie', 'tachykard', 'torsade', 'hypertensiv', 'blutdruck', 'acs', 'lungenödem'],
+    Kreislauf: ['kreislauf', 'hypotonie', 'vasopressor', 'blutdruck'],
+    ACS: ['acs', 'brustschmerz', 'thoraxschmerz'],
+    Rhythmusstörung: ['rhythmusstörung', 'antiarrhythmikum', 'bradykardie', 'tachykardie', 'av-block'],
+    Lungenödem: ['lungenödem', 'lungenoedem'],
+    Hypoglykämie: ['hypoglykämie', 'hypoglykaemie', 'glukose', 'glucose', 'blutzucker'],
     Schock: ['schock', 'hypotonie', 'vasopressor', 'katecholamin', 'anaphylaxie'],
     Analgesie: ['analget', 'analgesie', 'schmerzen', 'traumaanalgesie'],
     Sedierung: ['sedativ', 'sedierung', 'benzodiazepin', 'narkose'],
+    Antiemese: ['antiemese', 'antiemetikum', 'übelkeit', 'erbrechen'],
     Atemweg: ['atemweg', 'atemdepression', 'bronchodilat', 'bronchospastisch', 'ateminsuffizienz'],
+    Asthma: ['asthma', 'bronchospastisch', 'obstruktive atemnot'],
+    COPD: ['copd', 'obstruktive atemnot'],
+    Allergie: ['allergie', 'allergisch', 'antiallergisch', 'antihistaminikum'],
+    Anaphylaxie: ['anaphylaxie', 'allergischer schock'],
     Trauma: ['trauma', 'blutung', 'tranexamsäure', 'fibrinolyse', 'x-problem'],
     Antidot: ['antidot', 'intoxikation', 'cholinerge'],
+    BtM: ['btm'],
+    Kinder: ['kinder', 'pädiatr', 'alters', 'gewicht'],
+    'NEF / ärztlich': ['nef', 'ärztlich', 'arzt', 'atemwegssicherung'],
   }
 
   return filters[category]?.some((needle) => haystack.includes(needle)) ?? true
@@ -1020,6 +1035,16 @@ function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite
         <DetailSection title="Kontraindikationen" items={medication.contraindications} />
         <DetailSection title="Warnhinweise" items={medication.warnings} tone="warning" />
         <DetailSection title="App-Hinweise" items={medication.appNotes} />
+        {(medication.sopLinks?.length > 0 || medication.nunLinks?.length > 0) && (
+          <DetailSection title="SOP/NUN-Verknüpfungen">
+            {medication.sopLinks?.length > 0 && (
+              <p><strong>SOP:</strong> {medication.sopLinks.join(', ')}</p>
+            )}
+            {medication.nunLinks?.length > 0 && (
+              <p><strong>NUN:</strong> {medication.nunLinks.join(', ')}</p>
+            )}
+          </DetailSection>
+        )}
         <DetailSection title="Rechner">
           <p>Rechner verfügbar: <strong>{medication.calculatorEnabled ? 'Ja' : 'Nein'}</strong></p>
           {medication.calculatorEnabled && (
