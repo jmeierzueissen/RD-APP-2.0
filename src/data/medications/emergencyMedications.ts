@@ -13,6 +13,7 @@ export type EmergencyMedication = {
   calculatorProfiles: string[];
   sopLinks?: string[];
   nunLinks?: string[];
+  poisonCenterLinks?: string[];
   source: string;
   lastUpdated: string;
 };
@@ -1265,6 +1266,469 @@ export const emergencyMedications: EmergencyMedication[] = [
     sopLinks: ["SOP V11 Hypoglykämie"],
     nunLinks: ["NUN Hypoglykämie"],
     source: "SOP V11 Hypoglykämie / Fachinfo prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "naloxon",
+    name: "Naloxon",
+    tradeNames: ["Naloxon", "Narcanti"],
+    category: "Antidot / Toxikologie / Opioidintoxikation",
+    indications: [
+      "Verdacht auf Opioidintoxikation nach SOP/ärztlicher Freigabe",
+      "Atemdepression im Opioid-Kontext",
+      "Intoxikation mit Opioiden nach klinischer Prüfung"
+    ],
+    effect: "Opioidantagonist. Kann die Wirkung von Opioiden an Opioidrezeptoren aufheben.",
+    sideEffects: [
+      "Entzugssymptome",
+      "Unruhe",
+      "Übelkeit",
+      "Erbrechen",
+      "Tachykardie",
+      "Blutdruckanstieg möglich"
+    ],
+    contraindications: [
+      "im vitalen Notfall meist keine absolute Kontraindikation",
+      "Indikation und Opioid-Kontext prüfen",
+      "Überempfindlichkeit prüfen"
+    ],
+    warnings: [
+      "Entzugssymptomatik deutlich hervorheben",
+      "Rebound beachten: Wirkdauer des Opioids kann länger als die Antidotwirkung sein",
+      "Atemweg, Atmung und Monitoring weiter eng überwachen",
+      "Keine Dosierung ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Mit Antidotliste, Intoxikation und Giftnotruf & Toxikologie verknüpfen",
+      "Bei unklarem Verlauf toxikologische Rücksprache vorbereiten"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["naloxon-opioidintoxikation"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Beratung bei Intoxikation"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "flumazenil",
+    name: "Flumazenil",
+    tradeNames: ["Anexate", "Flumazenil"],
+    category: "Antidot / Toxikologie / Benzodiazepinintoxikation / NEF ärztlich prüfen",
+    indications: [
+      "Benzodiazepinwirkung oder -intoxikation nach ärztlicher Vorgabe",
+      "diagnostische oder therapeutische Antagonisierung nach lokaler Freigabe"
+    ],
+    effect: "Benzodiazepinantagonist. Kann Benzodiazepinwirkungen am GABA-A-Rezeptor antagonisieren.",
+    sideEffects: [
+      "Krampfanfall",
+      "Unruhe",
+      "Angst",
+      "Übelkeit",
+      "Erbrechen",
+      "Entzugssymptome möglich"
+    ],
+    contraindications: [
+      "Krampfanamnese oder Mischintoxikation streng prüfen",
+      "Benzodiazepinabhängigkeit prüfen",
+      "trizyklische Antidepressiva oder prokonvulsive Mischintoxikation prüfen",
+      "Anwendung nur nach SOP/ärztlicher Freigabe"
+    ],
+    warnings: [
+      "Krampfanfallsrisiko deutlich hervorheben",
+      "Mischintoxikation und Benzodiazepinabhängigkeit kritisch prüfen",
+      "NEF/ärztlich und toxikologische Rücksprache markieren",
+      "Keine Dosierung ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Antidot, Intoxikation, Toxikologie und NEF/ärztlich auffindbar machen",
+      "Warnkarte Krampfanfall priorisiert anzeigen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["flumazenil-benzodiazepinintoxikation"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Beratung bei Benzodiazepin- oder Mischintoxikation"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "biperiden",
+    name: "Biperiden",
+    tradeNames: ["Akineton"],
+    category: "Antidot / Toxikologie / Anticholinergikum",
+    indications: [
+      "extrapyramidale Symptome nach Medikamentengabe nach SOP/ärztlicher Freigabe",
+      "akute Dystonie nach lokaler Freigabe",
+      "toxikologischer Kontext nach Rücksprache prüfen"
+    ],
+    effect: "Zentral wirksames Anticholinergikum. Kann extrapyramidale Symptome lindern.",
+    sideEffects: [
+      "Mundtrockenheit",
+      "Tachykardie",
+      "Mydriasis",
+      "Harnverhalt",
+      "Verwirrtheit",
+      "Unruhe"
+    ],
+    contraindications: [
+      "Engwinkelglaukom",
+      "Harnverhalt oder Prostatahyperplasie prüfen",
+      "tachykarde Rhythmusstörungen prüfen",
+      "anticholinerges Toxidrom streng prüfen"
+    ],
+    warnings: [
+      "Anticholinerge Nebenwirkungen und Toxidrom-Abgrenzung beachten",
+      "Indikation und Ursache der Symptome prüfen",
+      "Keine Dosierung ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Antidot, Intoxikation und Toxikologie auffindbar machen",
+      "Giftnotruf-Rücksprache bei unklarer Intoxikation vorbereiten"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["biperiden-extrapyramidale-symptome"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Beratung bei unklarer Intoxikation"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "calciumgluconat",
+    name: "Calciumgluconat",
+    tradeNames: ["Calciumgluconat"],
+    category: "Antidot / Toxikologie / Elektrolyt / NEF ärztlich prüfen",
+    indications: [
+      "toxikologischer oder elektrolytischer Sonderfall nach SOP/ärztlicher Vorgabe",
+      "Flusssäure-Exposition nach toxikologischer Rücksprache prüfen",
+      "Kalziumkanalblocker-Intoxikation nach toxikologischer/ärztlicher Vorgabe prüfen"
+    ],
+    effect: "Calciumsalz zur Substitution oder spezifischen Therapie in ausgewählten toxikologischen/elektrolytischen Situationen.",
+    sideEffects: [
+      "Bradykardie möglich",
+      "Rhythmusstörungen möglich",
+      "Venenreizung",
+      "Gewebeschäden bei Fehlapplikation möglich",
+      "Hyperkalzämie möglich"
+    ],
+    contraindications: [
+      "Hyperkalzämie prüfen",
+      "Digitalistherapie oder Rhythmusstörungen streng prüfen",
+      "Indikation nur nach SOP/ärztlicher/toxikologischer Freigabe"
+    ],
+    warnings: [
+      "EKG- und Kreislaufmonitoring beachten",
+      "Toxikologische Rücksprache bei Sonderindikationen vorbereiten",
+      "Keine Dosierung ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Antidot, Toxikologie und NEF/ärztlich auffindbar machen",
+      "Verknüpfung zur Antidotliste und Giftnotruf vorbereiten"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["calciumgluconat-toxikologie"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Beratung bei Sonderindikationen"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "4-dmap",
+    name: "4-DMAP",
+    tradeNames: ["4-DMAP"],
+    category: "Antidot / Toxikologie / Cyanidintoxikation / NEF ärztlich",
+    indications: [
+      "Verdacht auf Cyanidintoxikation nach toxikologischer/ärztlicher Rücksprache",
+      "Sonderantidot nach lokaler Antidotliste und Freigabe"
+    ],
+    effect: "Methämoglobinbildner zur Bindung von Cyanid in ausgewählten Vergiftungssituationen.",
+    sideEffects: [
+      "Methämoglobinämie",
+      "Hypoxieverschlechterung möglich",
+      "Hypotonie möglich",
+      "Übelkeit",
+      "Kopfschmerz"
+    ],
+    contraindications: [
+      "fehlende toxikologische Indikation",
+      "unklare Rauchgasexposition ohne Freigabe streng prüfen",
+      "schwere Hypoxie oder relevante Anämie prüfen",
+      "Anwendung nur nach toxikologischer/ärztlicher Rücksprache"
+    ],
+    warnings: [
+      "Anwendung nur nach toxikologischer Rücksprache markieren",
+      "NEF/ärztlich deutlich kennzeichnen",
+      "Methämoglobinbildung und Sauerstofftransport beachten",
+      "Keine Dosierung ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Antidot, Toxikologie, Intoxikation und Giftnotruf auffindbar machen",
+      "Warnhinweis vor Anwendung priorisiert anzeigen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["4-dmap-cyanidintoxikation"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Rücksprache vor Anwendung"],
+    source: "Antidotliste/Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "medizinische-kohle",
+    name: "Medizinische Kohle",
+    tradeNames: ["Aktivkohle", "Medizinische Kohle"],
+    category: "Antidot / Toxikologie / Dekontamination / Intoxikation",
+    indications: [
+      "ausgewählte orale Intoxikationen nach toxikologischer Rücksprache",
+      "Dekontamination nach Antidotliste/Fachinformation prüfen",
+      "nur bei geeigneter Substanz, Zeitfenster und sicherem Atemweg"
+    ],
+    effect: "Adsorbens. Kann bestimmte oral aufgenommene Substanzen im Gastrointestinaltrakt binden.",
+    sideEffects: [
+      "Erbrechen",
+      "Obstipation",
+      "Aspiration",
+      "schwarzer Stuhl",
+      "Atemwegsverlegung bei Aspiration möglich"
+    ],
+    contraindications: [
+      "nicht geschützter Atemweg bei Aspirationsrisiko",
+      "Bewusstseinsstörung ohne Schutzreflexe",
+      "nicht adsorbierbare Substanzen oder ungeeignete Intoxikation prüfen",
+      "ätzende Substanzen oder Ileus-Verdacht prüfen"
+    ],
+    warnings: [
+      "Aspirationsrisiko deutlich hervorheben",
+      "Nur bei passender Substanz, Zeitfenster und sicherem Atemweg",
+      "Giftnotruf-Rücksprache vor Anwendung vorbereiten",
+      "Keine Dosierung ohne geprüfte Fachinformation/Giftnotruf-Empfehlung anzeigen"
+    ],
+    appNotes: [
+      "Unter Antidot, Intoxikation, Toxikologie und Häufige Vergiftungen auffindbar machen",
+      "Atemwegssicherheit vor Gabe als Warnhinweis anzeigen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["medizinische-kohle-intoxikation"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Beratung vor Anwendung"],
+    source: "Antidotliste/Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "dimeticon",
+    name: "Dimeticon",
+    tradeNames: ["Sab Simplex", "Dimeticon"],
+    category: "Toxikologie / Entschäumer / Intoxikation",
+    indications: [
+      "Schaumbildner- oder Tensidaufnahme nach toxikologischer Rücksprache",
+      "Vergiftungsverdacht mit schäumenden Substanzen nach Giftnotruf-Empfehlung"
+    ],
+    effect: "Entschäumer. Kann Schaumbildung im Gastrointestinaltrakt reduzieren.",
+    sideEffects: [
+      "Übelkeit möglich",
+      "Erbrechen möglich",
+      "selten Überempfindlichkeit"
+    ],
+    contraindications: [
+      "fehlende toxikologische Indikation",
+      "unklare Substanz ohne Rücksprache",
+      "Aspirationsrisiko und Bewusstseinslage prüfen"
+    ],
+    warnings: [
+      "Nur nach passender Substanz- und Giftnotruf-Empfehlung verwenden",
+      "Atemweg und Aspirationsrisiko beachten",
+      "Keine Dosierung ohne geprüfte Fachinformation/Giftnotruf-Empfehlung anzeigen"
+    ],
+    appNotes: [
+      "Unter Toxikologie, Intoxikation und Häufige Vergiftungen auffindbar machen",
+      "Giftnotruf-Verknüpfung sichtbar anzeigen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["dimeticon-schaumbildner"],
+    poisonCenterLinks: ["Giftnotruf / toxikologische Beratung bei Schaumbildnern"],
+    source: "Fachinfo/Giftnotruf prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "nacl-0-9",
+    name: "NaCl 0,9 %",
+    tradeNames: ["Natriumchlorid 0,9 %", "NaCl 0,9 %"],
+    category: "Infusionen & Trägerlösungen / Elektrolyte / Medikamententräger",
+    indications: [
+      "Medikamententräger nach Fachinformation/SOP",
+      "Spül- oder Verdünnungslösung nach lokaler Vorgabe",
+      "Volumentherapie nur nach Indikation und lokaler Freigabe prüfen"
+    ],
+    effect: "Isotone Natriumchlorid-Lösung. Dient häufig als Träger-, Spül- oder Verdünnungslösung.",
+    sideEffects: [
+      "Volumenbelastung möglich",
+      "Elektrolytverschiebungen bei relevanter Menge möglich",
+      "lokale Reizung oder Paravasat möglich"
+    ],
+    contraindications: [
+      "unklare oder fehlende Indikation",
+      "relevante Volumenüberlastung prüfen",
+      "Elektrolyt- und Flüssigkeitsstatus beachten"
+    ],
+    warnings: [
+      "Medikamententräger deutlich markieren",
+      "Nicht automatisch als Volumentherapie interpretieren",
+      "Keine Mengen- oder Laufratenangaben ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Infusionen, Trägerlösung und Elektrolyte auffindbar machen",
+      "Als Standard-Trägerlösung kennzeichnen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["nacl-traegerloesung"],
+    sopLinks: ["Trägerlösung / Volumentherapie nach lokaler SOP prüfen"],
+    nunLinks: ["NUN Volumentherapie / Medikamentengabe prüfen"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "vollelektrolytloesung",
+    name: "Vollelektrolytlösung",
+    tradeNames: ["Jonosteril", "Sterofundin", "Ringerfundin"],
+    category: "Infusionen & Trägerlösungen / Volumentherapie / Elektrolyte / balancierte Lösung",
+    indications: [
+      "Volumentherapie nach SOP",
+      "Schock oder Flüssigkeitsdefizit nach klinischer Prüfung",
+      "Trägerlösung nach lokaler Vorgabe prüfen"
+    ],
+    effect: "Balancierte kristalloide Elektrolytlösung zur Volumen- und Flüssigkeitstherapie.",
+    sideEffects: [
+      "Volumenüberlastung",
+      "Ödembildung möglich",
+      "Elektrolytverschiebungen möglich",
+      "Verdünnungseffekte bei relevanter Menge möglich"
+    ],
+    contraindications: [
+      "relevante Volumenüberlastung",
+      "dekompensierte Herzinsuffizienz prüfen",
+      "schwere Nierenfunktionsstörung oder Elektrolytstörung prüfen"
+    ],
+    warnings: [
+      "Balancierte Lösung deutlich kennzeichnen",
+      "Volumenstatus, Kreislauf und Lungenödemzeichen überwachen",
+      "Keine Mengen- oder Laufratenangaben ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Infusionen, Volumentherapie, Elektrolyte und Schock auffindbar machen",
+      "Mit Volumentherapie-Pfaden später verknüpfen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["vollelektrolytloesung-volumentherapie"],
+    sopLinks: ["Volumentherapie / Schock nach lokaler SOP prüfen"],
+    nunLinks: ["NUN Kreislauf / Volumentherapie prüfen"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "glukose-5",
+    name: "Glukose 5 %",
+    tradeNames: ["Glukose 5 %", "Glucose 5 %"],
+    category: "Infusionen & Trägerlösungen / Glukose / Trägerlösung",
+    indications: [
+      "Trägerlösung nach Fachinformation/SOP",
+      "Verdünnungslösung nach lokaler Vorgabe",
+      "nicht mit Glukose 20 % zur Hypoglykämietherapie verwechseln"
+    ],
+    effect: "Glukosehaltige Lösung, häufig als Träger- oder Verdünnungslösung verwendet.",
+    sideEffects: [
+      "Hyperglykämie möglich",
+      "Volumenbelastung möglich",
+      "Venenreizung oder Paravasat möglich"
+    ],
+    contraindications: [
+      "fehlende Indikation als Träger- oder Verdünnungslösung",
+      "relevante Hyperglykämie prüfen",
+      "Flüssigkeitsstatus beachten"
+    ],
+    warnings: [
+      "Deutlich von Glukose 20 % unterscheiden",
+      "Nicht als gleichwertige Hypoglykämie-Therapie darstellen",
+      "Keine Mengen- oder Laufratenangaben ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Infusionen und Trägerlösung auffindbar machen",
+      "Verwechslungswarnung zu Glukose 20 % anzeigen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["glukose-5-traegerloesung"],
+    sopLinks: ["Trägerlösung nach lokaler SOP prüfen"],
+    nunLinks: ["NUN Medikamentengabe / Trägerlösung prüfen"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "gelafundin-4",
+    name: "Gelafundin 4 %",
+    tradeNames: ["Gelafundin 4 %"],
+    category: "Infusionen & Trägerlösungen / Volumentherapie / Kolloid / Schock",
+    indications: [
+      "Volumentherapie nach SOP/ärztlicher Vorgabe",
+      "Schockzustand nach lokaler Freigabe prüfen",
+      "Kolloidale Volumenexpansion nur nach geprüfter Indikation"
+    ],
+    effect: "Kolloidale Infusionslösung zur Volumenexpansion.",
+    sideEffects: [
+      "Anaphylaxie",
+      "allergische Reaktionen",
+      "Volumenüberlastung",
+      "Gerinnungseinfluss möglich",
+      "Nierenfunktionsprobleme prüfen"
+    ],
+    contraindications: [
+      "bekannte Überempfindlichkeit gegen Gelatinepräparate",
+      "Volumenüberlastung",
+      "schwere Gerinnungsstörung prüfen",
+      "schwere Nierenfunktionsstörung prüfen"
+    ],
+    warnings: [
+      "Anaphylaxie-Warnung deutlich anzeigen",
+      "Volumenwarnung und enges Kreislaufmonitoring beachten",
+      "Anwendung nach lokaler SOP/ärztlicher Vorgabe prüfen",
+      "Keine Mengen- oder Laufratenangaben ohne geprüfte SOP/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Infusionen, Volumentherapie und Schock auffindbar machen",
+      "Warnkarte für Anaphylaxie und Volumenüberlastung anzeigen"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["gelafundin-volumentherapie"],
+    sopLinks: ["Volumentherapie / Schock nach lokaler SOP prüfen"],
+    nunLinks: ["NUN Kreislauf / Schock prüfen"],
+    source: "SOP/NEF-Medikamentenliste/Fachinfo prüfen",
+    lastUpdated: "2026-06-16"
+  },
+  {
+    id: "wasser-injektionszwecke",
+    name: "Wasser für Injektionszwecke",
+    tradeNames: ["Aqua ad iniectabilia", "Wasser für Injektionszwecke"],
+    category: "Infusionen & Trägerlösungen / Lösungsmittel / Trägerlösung",
+    indications: [
+      "Lösungsmittel zur Herstellung oder Verdünnung von Arzneimitteln nach Fachinformation",
+      "nicht zur alleinigen Infusion verwenden",
+      "Anwendung nur entsprechend Arzneimittel- und Fachinformation"
+    ],
+    effect: "Steriles Wasser als Lösungsmittel zur Rekonstitution oder Verdünnung geeigneter Arzneimittel.",
+    sideEffects: [
+      "Hämolysegefahr bei ungeeigneter direkter Anwendung",
+      "lokale Reizung möglich",
+      "Fehlanwendung kann schwere Komplikationen verursachen"
+    ],
+    contraindications: [
+      "alleinige intravenöse Infusion",
+      "Anwendung ohne geeignete Arzneimittel- oder Fachinformation",
+      "unklare Verdünnungsvorgaben"
+    ],
+    warnings: [
+      "Nur als Lösungsmittel kennzeichnen",
+      "Nicht als Infusions- oder Volumentherapie darstellen",
+      "Fachinformation des zu lösenden Medikaments prüfen",
+      "Keine Mengenangaben ohne geprüfte Herstellungs-/Fachinformation anzeigen"
+    ],
+    appNotes: [
+      "Unter Trägerlösung und Infusionen auffindbar machen",
+      "Klare Warnung: nur Lösungsmittel, keine eigenständige Therapie"
+    ],
+    calculatorEnabled: false,
+    calculatorProfiles: ["wasser-injektionszwecke-loesungsmittel"],
+    sopLinks: ["Lösungsmittel nach Fachinformation prüfen"],
+    nunLinks: ["NUN Medikamentengabe / Trägerlösung prüfen"],
+    source: "Fachinformation prüfen",
     lastUpdated: "2026-06-16"
   }
 ];

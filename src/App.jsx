@@ -28,6 +28,11 @@ import {
   TriangleAlert,
   UserRoundCog,
   Workflow,
+  FlaskConical,
+  BookOpen,
+  GraduationCap,
+  BarChart3,
+  RotateCcw,
 } from 'lucide-react'
 import './App.css'
 import { contactCategories, contactCategoryOptions, defaultContacts } from './data/contacts/defaultContacts'
@@ -37,6 +42,9 @@ import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
 import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
 import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
 import { defaultCalendarMonth, defaultScheduleEntries } from './data/schedules/defaultSchedule'
+import { sampleFlashcards } from './data/learning/flashcards/sampleFlashcards'
+import { sampleQuizQuestions } from './data/learning/quizzes/sampleQuizzes'
+import { loadLearningProgress, saveLearningProgress } from './storage/learningProgress'
 import {
   loadContactFavorites,
   loadUserContacts,
@@ -90,11 +98,50 @@ const USERS = [
 const quickActions = [
   { id: 'sops', label: 'SOPs', icon: FileText, color: 'blue' },
   { id: 'nun', label: 'NUN\nAlgorithmen', icon: Workflow, color: 'violet' },
-  { id: 'calculator', label: 'Medikamenten-\nrechner', icon: Calculator, color: 'green' },
   { id: 'redList', label: 'Notfall-\nmedikamente', icon: ClipboardList, color: 'red' },
+  { id: 'calculator', label: 'Medikamenten-\nrechner', icon: Calculator, color: 'green' },
   { id: 'emergency', label: 'Notfall-\nnummern', icon: Phone, color: 'yellow' },
+  { id: 'clinics', label: 'Kliniken', icon: BriefcaseMedical, color: 'blue' },
+  { id: 'schedule', label: 'Dienstplan', icon: CalendarDays, color: 'orange' },
   { id: 'favorites', label: 'Favoriten', icon: Star, color: 'violet' },
-  { id: 'admin', label: 'Tools', icon: BriefcaseMedical, color: 'gray' },
+]
+
+const learningCards = [
+  {
+    id: 'flashcards',
+    title: 'Lernkarten',
+    subtitle: 'Medikamente · SOPs · NUN · Prozeduren · Rechner / Scores',
+    icon: BookOpen,
+    color: 'violet',
+  },
+  {
+    id: 'quiz',
+    title: 'Quizmodus',
+    subtitle: 'Medikamente · SOPs · NUN · gemischt · falsche Antworten',
+    icon: GraduationCap,
+    color: 'green',
+  },
+  {
+    id: 'exam',
+    title: 'Prüfungsmodus',
+    subtitle: 'Vorbereiteter Modus für realistische Prüfungsblöcke',
+    icon: ShieldCheck,
+    color: 'orange',
+  },
+  {
+    id: 'mistakes',
+    title: 'Fehlertraining',
+    subtitle: 'Falsche Antworten gezielt wiederholen',
+    icon: RotateCcw,
+    color: 'red',
+  },
+  {
+    id: 'progress',
+    title: 'Fortschritt',
+    subtitle: 'Gesehene Karten, Quizpunkte und Favoriten',
+    icon: BarChart3,
+    color: 'yellow',
+  },
 ]
 
 const algorithmSteps = [
@@ -119,6 +166,7 @@ const desktopTabs = [
   { id: 'algorithm', label: 'Reanimation', icon: Workflow },
   { id: 'calculator', label: 'Medikamentenrechner', icon: Calculator },
   { id: 'redList', label: 'Notfallmedikamente', icon: ClipboardList },
+  { id: 'toxicology', label: 'Giftnotruf & Toxikologie', icon: FlaskConical },
   { id: 'emergency', label: 'Notfallnummern', icon: Phone },
   { id: 'favorites', label: 'Favoriten', icon: Star },
   { id: 'profile', label: 'Mein Profil', icon: CircleUserRound },
@@ -146,6 +194,7 @@ function App() {
   const [userProfile, setUserProfile] = useState(loadUserProfile)
   const [userSecurity, setUserSecurity] = useState(loadUserSecurity)
   const [isAppUnlocked, setIsAppUnlocked] = useState(() => !loadUserSecurity().appLockEnabled)
+  const [learningProgress, setLearningProgress] = useState(loadLearningProgress)
   const [selectedWeight, setSelectedWeight] = useState(70)
   const [activeMedicationName, setActiveMedicationName] = useState(null)
   const [showSplash, setShowSplash] = useState(true)
@@ -195,6 +244,10 @@ function App() {
   }, [userSecurity])
 
   useEffect(() => {
+    saveLearningProgress(learningProgress)
+  }, [learningProgress])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1800)
     return () => window.clearTimeout(timer)
   }, [])
@@ -235,6 +288,14 @@ function App() {
   }
 
   function go(screen) {
+    if (screen === 'tools') {
+      setActiveScreen('algorithm')
+      return
+    }
+    if (screen === 'clinics') {
+      setActiveScreen('emergency')
+      return
+    }
     if (screen === 'admin' && !isAdmin) {
       setActiveScreen('more')
       return
@@ -294,6 +355,13 @@ function App() {
             )}
             {activeScreen === 'schedule' && <ScheduleScreen go={go} />}
             {activeScreen === 'emergency' && <EmergencyContactsScreen go={go} />}
+            {activeScreen === 'toxicology' && <ToxicologyScreen go={go} />}
+            {activeScreen === 'flashcards' && (
+              <FlashcardsScreen go={go} progress={learningProgress} setProgress={setLearningProgress} />
+            )}
+            {activeScreen === 'quiz' && (
+              <QuizScreen go={go} progress={learningProgress} setProgress={setLearningProgress} />
+            )}
             {activeScreen === 'favorites' && (
               <FavoritesScreen
                 go={go}
@@ -407,11 +475,12 @@ function Header({ title, go, actions }) {
 }
 
 function HomeScreen({ user, profile, go }) {
+  const [dashboardPage, setDashboardPage] = useState('einsatz')
   const firstName = profile.firstName || profile.displayName.split(' ')[0] || 'Max'
   const station = profile.station || (user.station === 'Systemverwaltung' ? 'Wache Mitte' : user.station)
 
   return (
-    <div className="screen-content">
+    <div className="screen-content home-screen">
       <div className="home-top">
         <button className="dashboard-profile" type="button" onClick={() => go('profile')}>
           <span>Guten Morgen,</span>
@@ -427,31 +496,231 @@ function HomeScreen({ user, profile, go }) {
         </div>
       </div>
 
-      <button className="next-shift" type="button" onClick={() => go('schedule')}>
-        <span className="tile-icon blue">
-          <CalendarDays size={28} />
-        </span>
-        <span>
-          <small>NÃ¤chste Schicht</small>
-          <strong>Heute, 07:00 - 19:00 Uhr</strong>
-          <em>RTW 1 | {station}</em>
-        </span>
-      </button>
+      {dashboardPage === 'einsatz' && (
+        <>
+          <button className="next-shift" type="button" onClick={() => go('schedule')}>
+            <span className="tile-icon blue">
+              <CalendarDays size={28} />
+            </span>
+            <span>
+              <small>Nächste Schicht</small>
+              <strong>Heute, 07:00 - 19:00 Uhr</strong>
+              <em>RTW 1 | {station}</em>
+            </span>
+          </button>
 
-      <SectionTitle title="Schnellzugriff" action="Bearbeiten" />
-      <div className="quick-grid">
-        {quickActions.map((action) => {
-          const Icon = action.icon
-          return (
-            <button key={action.id} type="button" className="quick-card" onClick={() => go(action.id)}>
-              <Icon className={action.color} size={34} />
-              <span>{action.label}</span>
-            </button>
-          )
-        })}
-      </div>
+          <SectionTitle title="Einsatz" action="Bearbeiten" />
+          <div className="quick-grid">
+            {quickActions.map((action) => {
+              const Icon = action.icon
+              return (
+                <button key={action.id} type="button" className="quick-card" onClick={() => go(action.id)}>
+                  <Icon className={action.color} size={34} />
+                  <span>{action.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <DashboardTabs activePage={dashboardPage} setPage={setDashboardPage} />
+        </>
+      )}
+
+      {dashboardPage === 'lernen' && (
+        <>
+          <SectionTitle title="Lernen" action={`${sampleFlashcards.length} Karten`} />
+          <div className="learning-grid">
+            {learningCards.map((card) => {
+              const Icon = card.icon
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  className={`learning-card ${card.color}`}
+                  onClick={() => (card.id === 'flashcards' || card.id === 'quiz' ? go(card.id) : undefined)}
+                >
+                  <span className={`tile-icon ${card.color}`}>
+                    <Icon size={25} />
+                  </span>
+                  <span>
+                    <strong>{card.title}</strong>
+                    <em>{card.subtitle}</em>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              )
+            })}
+          </div>
+          <div className="page-dots" aria-label="Dashboardseiten">
+            <span />
+            <span className="active" />
+          </div>
+          <DashboardTabs activePage={dashboardPage} setPage={setDashboardPage} />
+        </>
+      )}
     </div>
   )
+}
+
+function DashboardTabs({ activePage, setPage }) {
+  return (
+    <div className="dashboard-tabs" aria-label="Dashboardbereich">
+      <button
+        type="button"
+        className={activePage === 'einsatz' ? 'active' : ''}
+        onClick={() => setPage('einsatz')}
+      >
+        Einsatz
+      </button>
+      <button
+        type="button"
+        className={activePage === 'lernen' ? 'active' : ''}
+        onClick={() => setPage('lernen')}
+      >
+        Lernen
+      </button>
+    </div>
+  )
+}
+
+function FlashcardsScreen({ go, progress, setProgress }) {
+  const [cardIndex, setCardIndex] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+  const [category, setCategory] = useState('Alle')
+  const cards = sampleFlashcards.filter((card) => category === 'Alle' || card.category === category)
+  const currentCard = cards[cardIndex] || cards[0]
+  const categories = ['Alle', ...new Set(sampleFlashcards.map((card) => card.category))]
+
+  function markCard(type) {
+    if (!currentCard) return
+    setProgress({
+      ...progress,
+      seenCards: uniqueList([...progress.seenCards, currentCard.id]),
+      knownCards: type === 'known' ? uniqueList([...progress.knownCards, currentCard.id]) : progress.knownCards,
+      unknownCards: type === 'unknown' ? uniqueList([...progress.unknownCards, currentCard.id]) : progress.unknownCards,
+    })
+  }
+
+  function toggleFavoriteCard() {
+    if (!currentCard) return
+    const isFavorite = progress.favoriteCards.includes(currentCard.id)
+    setProgress({
+      ...progress,
+      favoriteCards: isFavorite
+        ? progress.favoriteCards.filter((id) => id !== currentCard.id)
+        : [...progress.favoriteCards, currentCard.id],
+    })
+  }
+
+  return (
+    <div className="screen-content">
+      <Header title="Lernkarten" go={go} actions={<BookOpen size={20} />} />
+      <ChipRow items={categories} activeItem={category} onSelect={(nextCategory) => {
+        setCategory(nextCategory)
+        setCardIndex(0)
+        setIsFlipped(false)
+      }} />
+      {currentCard ? (
+        <>
+          <button className={`flashcard ${isFlipped ? 'flipped' : ''}`} type="button" onClick={() => setIsFlipped(!isFlipped)}>
+            <span>{currentCard.category} · {currentCard.topic}</span>
+            <strong>{isFlipped ? currentCard.back : currentCard.front}</strong>
+            <em>{isFlipped ? 'Rückseite' : 'Tippen zum Umdrehen'}</em>
+          </button>
+          <div className="learning-actions">
+            <button type="button" onClick={() => setCardIndex(Math.max(0, cardIndex - 1))}>Vorherige</button>
+            <button type="button" onClick={() => setIsFlipped(!isFlipped)}>Umdrehen</button>
+            <button type="button" onClick={() => setCardIndex(Math.min(cards.length - 1, cardIndex + 1))}>Nächste</button>
+            <button type="button" onClick={() => markCard('unknown')}>Nicht gewusst</button>
+            <button type="button" onClick={() => markCard('known')}>Gewusst</button>
+            <button type="button" onClick={toggleFavoriteCard}>
+              {progress.favoriteCards.includes(currentCard.id) ? 'Favorit entfernen' : 'Favorit'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="empty-state">Noch keine Lernkarten in dieser Kategorie.</div>
+      )}
+    </div>
+  )
+}
+
+function QuizScreen({ go, progress, setProgress }) {
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const [selectedOption, setSelectedOption] = useState(null)
+  const [score, setScore] = useState(0)
+  const question = sampleQuizQuestions[questionIndex]
+  const hasAnswered = selectedOption !== null
+
+  function answerQuestion(index) {
+    if (hasAnswered) return
+    setSelectedOption(index)
+    const isCorrect = index === question.correctOptionIndex
+    setScore((current) => current + (isCorrect ? 1 : 0))
+    setProgress({
+      ...progress,
+      wrongAnswers: isCorrect ? progress.wrongAnswers : uniqueList([...progress.wrongAnswers, question.id]),
+      quizScores: {
+        ...progress.quizScores,
+        lastScore: score + (isCorrect ? 1 : 0),
+      },
+    })
+  }
+
+  function restartQuiz() {
+    setQuestionIndex(0)
+    setSelectedOption(null)
+    setScore(0)
+  }
+
+  return (
+    <div className="screen-content">
+      <Header title="Quizmodus" go={go} actions={<GraduationCap size={20} />} />
+      <div className="quiz-progress">
+        <span>Frage {questionIndex + 1} / {sampleQuizQuestions.length}</span>
+        <strong>{score} Punkte</strong>
+      </div>
+      {question ? (
+        <div className="quiz-card">
+          <span>{question.category} · {question.difficulty}</span>
+          <h3>{question.question}</h3>
+          <div className="quiz-options">
+            {question.options.map((option, index) => (
+              <button
+                key={option}
+                type="button"
+                className={hasAnswered ? (index === question.correctOptionIndex ? 'correct' : selectedOption === index ? 'wrong' : '') : ''}
+                onClick={() => answerQuestion(index)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {hasAnswered && (
+            <div className="quiz-explanation">
+              <strong>{selectedOption === question.correctOptionIndex ? 'Richtig' : 'Nicht richtig'}</strong>
+              <p>{question.explanation}</p>
+            </div>
+          )}
+          <div className="learning-actions">
+            <button type="button" disabled={!hasAnswered || questionIndex >= sampleQuizQuestions.length - 1} onClick={() => {
+              setQuestionIndex(questionIndex + 1)
+              setSelectedOption(null)
+            }}>
+              Nächste Frage
+            </button>
+            <button type="button" onClick={restartQuiz}>Quiz neu starten</button>
+            <button type="button" onClick={() => setQuestionIndex(0)}>Falsche wiederholen</button>
+          </div>
+        </div>
+      ) : (
+        <div className="empty-state">Noch keine Quizfragen vorhanden.</div>
+      )}
+    </div>
+  )
+}
+
+function uniqueList(items) {
+  return [...new Set(items)]
 }
 
 function SopsScreen({ go, isFavorite, toggleFavorite }) {
@@ -884,6 +1153,7 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
       medication.calculatorProfiles,
       medication.sopLinks,
       medication.nunLinks,
+      medication.poisonCenterLinks,
       medication.source,
     ]
       .join(' ')
@@ -911,7 +1181,7 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
         onChange={setQuery}
       />
       <ChipRow
-        items={['Alle', 'Reanimation', 'Kardiologie', 'Kreislauf', 'ACS', 'Rhythmusstörung', 'Lungenödem', 'Hypoglykämie', 'Schock', 'Analgesie', 'Sedierung', 'Antiemese', 'Atemweg', 'Asthma', 'COPD', 'Allergie', 'Anaphylaxie', 'Trauma', 'Antidot', 'BtM', 'Kinder', 'NEF / ärztlich']}
+        items={['Alle', 'Reanimation', 'Kardiologie', 'Kreislauf', 'ACS', 'Rhythmusstörung', 'Lungenödem', 'Hypoglykämie', 'Schock', 'Volumentherapie', 'Elektrolyte', 'Trägerlösung', 'Infusionen', 'Analgesie', 'Sedierung', 'Antiemese', 'Atemweg', 'Asthma', 'COPD', 'Allergie', 'Anaphylaxie', 'Trauma', 'Antidot', 'Intoxikation', 'Giftnotruf', 'Toxikologie', 'BtM', 'Kinder', 'NEF / ärztlich']}
         activeItem={activeCategory}
         onSelect={setActiveCategory}
       />
@@ -980,6 +1250,10 @@ function medicationMatchesCategory(medication, category) {
     Lungenödem: ['lungenödem', 'lungenoedem'],
     Hypoglykämie: ['hypoglykämie', 'hypoglykaemie', 'glukose', 'glucose', 'blutzucker'],
     Schock: ['schock', 'hypotonie', 'vasopressor', 'katecholamin', 'anaphylaxie'],
+    Volumentherapie: ['volumentherapie', 'volumen', 'flüssigkeitstherapie', 'kolloid'],
+    Elektrolyte: ['elektrolyt', 'natriumchlorid', 'nacl', 'balancierte lösung'],
+    Trägerlösung: ['trägerlösung', 'traegerloesung', 'medikamententräger', 'lösungmittel', 'lösungsmittel', 'verdünnung'],
+    Infusionen: ['infusion', 'infusionen', 'infusionslösung', 'trägerlösung'],
     Analgesie: ['analget', 'analgesie', 'schmerzen', 'traumaanalgesie'],
     Sedierung: ['sedativ', 'sedierung', 'benzodiazepin', 'narkose'],
     Antiemese: ['antiemese', 'antiemetikum', 'übelkeit', 'erbrechen'],
@@ -990,6 +1264,9 @@ function medicationMatchesCategory(medication, category) {
     Anaphylaxie: ['anaphylaxie', 'allergischer schock'],
     Trauma: ['trauma', 'blutung', 'tranexamsäure', 'fibrinolyse', 'x-problem'],
     Antidot: ['antidot', 'intoxikation', 'cholinerge'],
+    Intoxikation: ['intoxikation', 'vergiftung', 'toxikolog', 'toxidrom'],
+    Giftnotruf: ['giftnotruf', 'toxikologische beratung', 'toxikologische rücksprache'],
+    Toxikologie: ['toxikologie', 'toxikolog', 'antidotliste', 'vergiftung'],
     BtM: ['btm'],
     Kinder: ['kinder', 'pädiatr', 'alters', 'gewicht'],
     'NEF / ärztlich': ['nef', 'ärztlich', 'arzt', 'atemwegssicherung'],
@@ -1045,6 +1322,9 @@ function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite
             )}
           </DetailSection>
         )}
+        {medication.poisonCenterLinks?.length > 0 && (
+          <DetailSection title="Giftnotruf-Verknüpfung" items={medication.poisonCenterLinks} tone="warning" />
+        )}
         <DetailSection title="Rechner">
           <p>Rechner verfügbar: <strong>{medication.calculatorEnabled ? 'Ja' : 'Nein'}</strong></p>
           {medication.calculatorEnabled && (
@@ -1076,6 +1356,80 @@ function DetailSection({ title, items, children, tone }) {
         </ul>
       ) : children}
     </section>
+  )
+}
+
+function ToxicologyScreen({ go }) {
+  const antidotes = emergencyMedications.filter((medication) => {
+    const haystack = [medication.category, medication.appNotes, medication.poisonCenterLinks].join(' ').toLowerCase()
+    return haystack.includes('antidot') || haystack.includes('toxikologie') || haystack.includes('giftnotruf')
+  })
+  const sections = [
+    {
+      id: 'poison-call',
+      title: 'Giftnotruf',
+      icon: Phone,
+      text: 'Schnelle toxikologische Beratung. Telefonnummern werden im Kontaktbereich gepflegt.',
+      action: 'Kontakte öffnen',
+      screen: 'emergency',
+    },
+    {
+      id: 'antidotes',
+      title: 'Antidotliste',
+      icon: ClipboardList,
+      text: `${antidotes.length} Antidot-/Toxikologie-Einträge in der Medikamentendatenbank.`,
+      action: 'Medikamente öffnen',
+      screen: 'redList',
+    },
+    {
+      id: 'poisonings',
+      title: 'Häufige Vergiftungen',
+      icon: TriangleAlert,
+      text: 'Vorbereiteter Bereich für später geprüfte Vergiftungsbilder und Handlungspfade.',
+    },
+    {
+      id: 'toxidromes',
+      title: 'Toxidrome',
+      icon: Workflow,
+      text: 'Vorbereiteter Bereich für toxikologische Leitsymptome und Differenzierung.',
+    },
+    {
+      id: 'transport',
+      title: 'Transporthinweise',
+      icon: BriefcaseMedical,
+      text: 'Vorbereiteter Bereich für Transportziel, Überwachung und Rücksprachehinweise.',
+    },
+  ]
+
+  return (
+    <div className="screen-content">
+      <Header title="Giftnotruf & Toxikologie" go={go} actions={<FlaskConical size={20} />} />
+      <div className="medicine-note">
+        Vorbereiteter Offline-Bereich. Fachliche Inhalte werden später nur aus gültiger SOP, Antidotliste, Fachinformation oder Giftnotruf-Empfehlung ergänzt.
+      </div>
+      <div className="item-list">
+        {sections.map((section) => {
+          const Icon = section.icon
+          return (
+            <button
+              key={section.id}
+              type="button"
+              className="list-row"
+              onClick={() => section.screen && go(section.screen)}
+            >
+              <span className="tile-icon orange">
+                <Icon size={20} />
+              </span>
+              <span>
+                <strong>{section.title}</strong>
+                <em>{section.text}</em>
+              </span>
+              {section.action ? <ChevronRight size={20} /> : <span />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -2222,6 +2576,7 @@ function MoreScreen({ user, profile, go, onLogout }) {
     ['security', 'Sicherheit', Lock],
     ['schedule', 'Schichtplan', CalendarDays],
     ['emergency', 'Notfallnummern', Phone],
+    ['toxicology', 'Giftnotruf & Toxikologie', FlaskConical],
     ['favorites', 'Favoriten', Star],
     ['nun', 'NUN Algorithmen', Workflow],
     ['admin', 'Admin & Updates', ShieldCheck],
