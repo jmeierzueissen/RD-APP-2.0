@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { contactCategories, contactCategoryOptions, defaultContacts } from './data/contacts/defaultContacts'
-import { medicationData } from './medications'
+import { emergencyMedications } from './data/medications/emergencyMedications'
 import { nunIndex } from './data/algorithms/nun/nunIndex'
 import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
 import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
@@ -95,18 +95,6 @@ const quickActions = [
   { id: 'emergency', label: 'Notfall-\nnummern', icon: Phone, color: 'yellow' },
   { id: 'favorites', label: 'Favoriten', icon: Star, color: 'violet' },
   { id: 'admin', label: 'Tools', icon: BriefcaseMedical, color: 'gray' },
-]
-
-const medicines = [
-  ['Adrenalin', 'Katecholamin', 'yellow'],
-  ['Amiodaron', 'Antiarrhythmikum', 'red'],
-  ['ASS (AcetylsalicylsÃ¤ure)', 'Thrombozytenaggregationshemmer', 'green'],
-  ['Atropin', 'Parasympatholytikum', 'green'],
-  ['Clopidogrel', 'Thrombozytenaggregationshemmer', 'red'],
-  ['Dexamethason', 'Kortikosteroid', 'green'],
-  ['Diazepam', 'Benzodiazepin', 'orange'],
-  ['Dobutamin', 'Katecholamin', 'green'],
-  ['Epinephrin', 'Katecholamin', 'yellow'],
 ]
 
 const algorithmSteps = [
@@ -182,11 +170,11 @@ function App() {
         subtitle: `${item.category} · ${formatPages(item.pages)}`,
         screen: 'nun',
       })),
-      ...medicationData.map((item) => ({
+      ...emergencyMedications.map((item) => ({
         id: favoriteId('medication', item.name),
         type: 'Medikament',
         title: item.name,
-        subtitle: item.group,
+        subtitle: item.category,
         screen: 'redList',
         medicationName: item.name,
       })),
@@ -878,40 +866,27 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
     if (!initialMedicationName) {
       return null
     }
-    return medicationData.find((medication) => medication.name === initialMedicationName) ?? null
+    return emergencyMedications.find((medication) => medication.name === initialMedicationName) ?? null
   })
-  const fallbackMedications = medicines.map(([name, group]) => ({
-    name,
-    group,
-    effect: 'Platzhalter',
-    indications: 'Platzhalter',
-    sideEffects: 'Platzhalter',
-    contraindications: 'Platzhalter',
-    appNote: 'SOP- und NUN-Verknuepfung spaeter ergaenzen.',
-  }))
-  const allMedications = medicationData.length > 0 ? medicationData : fallbackMedications
   const search = query.trim().toLowerCase()
-  const filteredMedications = allMedications.filter((medication) => {
+  const filteredMedications = emergencyMedications.filter((medication) => {
     const matchesCategory = medicationMatchesCategory(medication, activeCategory)
     const searchable = [
       medication.name,
-      medication.group,
+      medication.tradeNames,
+      medication.category,
       medication.effect,
       medication.indications,
       medication.sideEffects,
       medication.contraindications,
-      medication.category,
-      medication.subcategory,
-      medication.applicationRoutes,
-      medication.specialNotes,
-      medication.monitoring,
-      medication.sopLink,
-      medication.nunLink,
-      medication.tags,
+      medication.warnings,
+      medication.appNotes,
+      medication.calculatorProfiles,
+      medication.source,
     ]
       .join(' ')
       .toLowerCase()
-    return matchesCategory && searchable.includes(search)
+    return matchesCategory && (!search || searchable.includes(search))
   })
 
   if (selectedMedication) {
@@ -934,18 +909,18 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
         onChange={setQuery}
       />
       <ChipRow
-        items={['Alle', 'Analgetika', 'Sedativa', 'Katecholamine', 'Antidote']}
+        items={['Alle', 'Reanimation', 'Kardiologie', 'Schock', 'Analgesie', 'Sedierung', 'Atemweg', 'Trauma', 'Antidot']}
         activeItem={activeCategory}
         onSelect={setActiveCategory}
       />
       <div className="medicine-note">
-        Lern- und Strukturhilfe. Vor Einsatz regionale SOPs und NUN beachten.
+        Strukturierte Datenbank. Inhalte vor Anwendung anhand gültiger SOP, Fachinformation oder ÄLRD-Freigabe prüfen.
       </div>
       <div className="medicine-list">
         {filteredMedications.map((medication) => {
           const id = favoriteId('medication', medication.name)
           return (
-            <div key={medication.name} className="medicine-row favorite-row">
+            <div key={medication.id} className="medicine-row favorite-row">
               <button
                 type="button"
                 className="row-main"
@@ -954,10 +929,10 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
                   setSelectedMedication(medication)
                 }}
               >
-                <span className={`dot ${medicineColor(medication.group)}`} />
+                <span className={`dot ${medicineColor(medication.category)}`} />
                 <span>
                   <strong>{medication.name}</strong>
-                  <em>{medication.group}</em>
+                  <em>{medication.tradeNames.join(', ') || 'Handelsname offen'} · {medication.category}</em>
                 </span>
                 <ChevronRight size={18} />
               </button>
@@ -982,69 +957,34 @@ function medicationMatchesCategory(medication, category) {
     return true
   }
 
-  const group = medication.group.toLowerCase()
-  const name = medication.name.toLowerCase()
-  const effect = medication.effect.toLowerCase()
-  const medCategory = medication.category?.toLowerCase() ?? ''
-  const medSubcategory = medication.subcategory?.toLowerCase() ?? ''
-  const tags = medication.tags?.toLowerCase() ?? ''
+  const haystack = [
+    medication.name,
+    medication.tradeNames,
+    medication.category,
+    medication.indications,
+    medication.effect,
+    medication.warnings,
+    medication.appNotes,
+  ]
+    .join(' ')
+    .toLowerCase()
 
-  if (category === 'Analgetika') {
-    return (
-      group.includes('analget') ||
-      group.includes('opioid') ||
-      group.includes('nichtopioid') ||
-      group.includes('nsar') ||
-      group.includes('dissoziativ') ||
-      medCategory.includes('analgesie') ||
-      medSubcategory.includes('opioid') ||
-      tags.includes('schmerz') ||
-      effect.includes('analgesie')
-    )
+  const filters = {
+    Reanimation: ['reanimation', 'cpr', 'vf', 'pvt'],
+    Kardiologie: ['antiarrhythmikum', 'bradykardie', 'tachykard', 'torsade', 'hypertensiv', 'blutdruck'],
+    Schock: ['schock', 'hypotonie', 'vasopressor', 'katecholamin', 'anaphylaxie'],
+    Analgesie: ['analget', 'analgesie', 'schmerzen', 'traumaanalgesie'],
+    Sedierung: ['sedativ', 'sedierung', 'benzodiazepin', 'narkose'],
+    Atemweg: ['atemweg', 'atemdepression', 'bronchodilat', 'bronchospastisch', 'ateminsuffizienz'],
+    Trauma: ['trauma', 'blutung', 'tranexamsäure', 'fibrinolyse', 'x-problem'],
+    Antidot: ['antidot', 'intoxikation', 'cholinerge'],
   }
 
-  if (category === 'Sedativa') {
-    return (
-      group.includes('benzodiazepin') ||
-      group.includes('hypnotikum') ||
-      group.includes('dissoziativ') ||
-      tags.includes('sedierung') ||
-      effect.includes('sedierung') ||
-      name.includes('midazolam') ||
-      name.includes('propofol') ||
-      name.includes('etomidat')
-    )
-  }
-
-  if (category === 'Katecholamine') {
-    return group.includes('katecholamin') || group.includes('vasopressor') || group.includes('inotrop')
-  }
-
-  if (category === 'Antidote') {
-    return group.includes('antidot')
-  }
-
-  return true
+  return filters[category]?.some((needle) => haystack.includes(needle)) ?? true
 }
 
 function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite }) {
   const id = favoriteId('medication', medication.name)
-  const detailRows = [
-    ['Gruppe', medication.group],
-    ['Kategorie', medication.category],
-    ['Unterkategorie', medication.subcategory],
-    ['Wirkung', medication.effect],
-    ['Indikationen', medication.indications],
-    ['Nebenwirkungen', medication.sideEffects],
-    ['Kontraindikationen', medication.contraindications],
-    ['Applikationswege', medication.applicationRoutes],
-    ['Besonderheiten', medication.specialNotes],
-    ['Monitoring', medication.monitoring],
-    ['SOP-Verknuepfung', medication.sopLink],
-    ['NUN-Verknuepfung', medication.nunLink],
-    ['APP 2.0 Tags', medication.tags],
-    ['APP 2.0 Hinweis', medication.appNote],
-  ].filter(([, value]) => Boolean(value))
 
   return (
     <div className="screen-content">
@@ -1058,23 +998,59 @@ function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite
         </div>
       </header>
       <div className="medicine-detail-hero">
-        <span className={`tile-icon ${medicineColor(medication.group)}`}>
+        <span className={`tile-icon ${medicineColor(medication.category)}`}>
           <ClipboardList size={24} />
         </span>
         <span>
           <strong>{medication.name}</strong>
-          <em>{medication.group}</em>
+          <em>{medication.tradeNames.join(', ') || 'Handelsname offen'} · {medication.category}</em>
         </span>
       </div>
+      <div className="medicine-safety-warning">
+        Diese Informationen ersetzen keine gültige SOP, Fachinformation oder ärztliche Entscheidung. Dosierungen und Anwendung müssen vor Gabe geprüft werden.
+      </div>
       <div className="detail-list">
-        {detailRows.map(([label, value]) => (
-          <section key={label} className="detail-section">
-            <h3>{label}</h3>
-            <p>{value}</p>
-          </section>
-        ))}
+        <DetailSection title="Übersicht">
+          <p><strong>Handelsname:</strong> {medication.tradeNames.join(', ') || 'Nicht hinterlegt'}</p>
+          <p><strong>Kategorie:</strong> {medication.category}</p>
+        </DetailSection>
+        <DetailSection title="Indikation" items={medication.indications} />
+        <DetailSection title="Wirkung"><p>{medication.effect}</p></DetailSection>
+        <DetailSection title="Nebenwirkungen" items={medication.sideEffects} />
+        <DetailSection title="Kontraindikationen" items={medication.contraindications} />
+        <DetailSection title="Warnhinweise" items={medication.warnings} tone="warning" />
+        <DetailSection title="App-Hinweise" items={medication.appNotes} />
+        <DetailSection title="Rechner">
+          <p>Rechner verfügbar: <strong>{medication.calculatorEnabled ? 'Ja' : 'Nein'}</strong></p>
+          {medication.calculatorEnabled && (
+            <>
+              <button className="dose-calc-link" type="button">
+                <Calculator size={16} />
+                Dosis berechnen
+              </button>
+              <p className="calculator-profile-note">Profile vorbereitet: {medication.calculatorProfiles.join(', ')}</p>
+            </>
+          )}
+        </DetailSection>
+        <DetailSection title="Quelle">
+          <p>{medication.source}</p>
+          <p><strong>Stand:</strong> {medication.lastUpdated}</p>
+        </DetailSection>
       </div>
     </div>
+  )
+}
+
+function DetailSection({ title, items, children, tone }) {
+  return (
+    <section className={`detail-section ${tone || ''}`}>
+      <h3>{title}</h3>
+      {items ? (
+        <ul>
+          {items.map((item) => <li key={item}>{item}</li>)}
+        </ul>
+      ) : children}
+    </section>
   )
 }
 
