@@ -395,6 +395,10 @@ button {
   border-color: rgba(139, 77, 255, 0.38);
 }
 
+.learning-card.blue {
+  border-color: rgba(45, 127, 249, 0.38);
+}
+
 .learning-card.green {
   border-color: rgba(81, 217, 107, 0.34);
 }
@@ -467,6 +471,17 @@ button {
   line-height: 1.35;
 }
 
+.flashcard-meta {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: rgba(8, 16, 25, 0.72);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  font-size: 11px;
+}
+
 .learning-actions {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -490,6 +505,12 @@ button {
   color: var(--faint);
   border-color: var(--line);
   background: rgba(18, 28, 40, 0.72);
+}
+
+.learning-actions .wide-action {
+  grid-column: 1 / -1;
+  background: rgba(81, 217, 107, 0.2);
+  border-color: rgba(81, 217, 107, 0.38);
 }
 
 .quiz-progress {

@@ -42,7 +42,10 @@ import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
 import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
 import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
 import { defaultCalendarMonth, defaultScheduleEntries } from './data/schedules/defaultSchedule'
+import { medicationFlashcards } from './data/learning/flashcards/medicationFlashcards'
+import { nunFlashcards } from './data/learning/flashcards/nunFlashcards'
 import { sampleFlashcards } from './data/learning/flashcards/sampleFlashcards'
+import { sopFlashcards } from './data/learning/flashcards/sopFlashcards'
 import { sampleQuizQuestions } from './data/learning/quizzes/sampleQuizzes'
 import { loadLearningProgress, saveLearningProgress } from './storage/learningProgress'
 import {
@@ -108,7 +111,7 @@ const quickActions = [
 
 const learningCards = [
   {
-    id: 'flashcards',
+    id: 'flashcardMenu',
     title: 'Lernkarten',
     subtitle: 'Medikamente · SOPs · NUN · Prozeduren · Rechner / Scores',
     icon: BookOpen,
@@ -142,6 +145,18 @@ const learningCards = [
     icon: BarChart3,
     color: 'yellow',
   },
+]
+
+const sopFlashcardCategories = [
+  'Basisversorgung',
+  'Reanimation',
+  'Kardiologie',
+  'Neurologie',
+  'Atemweg / Atmung',
+  'Schock / Allergie',
+  'Infekt / Sepsis',
+  'Analgesie',
+  'Stoffwechsel',
 ]
 
 const algorithmSteps = [
@@ -195,6 +210,7 @@ function App() {
   const [userSecurity, setUserSecurity] = useState(loadUserSecurity)
   const [isAppUnlocked, setIsAppUnlocked] = useState(() => !loadUserSecurity().appLockEnabled)
   const [learningProgress, setLearningProgress] = useState(loadLearningProgress)
+  const [activeFlashcardDeck, setActiveFlashcardDeck] = useState('Medikamente')
   const [selectedWeight, setSelectedWeight] = useState(70)
   const [activeMedicationName, setActiveMedicationName] = useState(null)
   const [showSplash, setShowSplash] = useState(true)
@@ -306,6 +322,11 @@ function App() {
     }
   }
 
+  function openFlashcardDeck(deck) {
+    setActiveFlashcardDeck(deck)
+    setActiveScreen('flashcards')
+  }
+
   if (showSplash) {
     return <SplashScreen />
   }
@@ -356,8 +377,17 @@ function App() {
             {activeScreen === 'schedule' && <ScheduleScreen go={go} />}
             {activeScreen === 'emergency' && <EmergencyContactsScreen go={go} />}
             {activeScreen === 'toxicology' && <ToxicologyScreen go={go} />}
+            {activeScreen === 'flashcardMenu' && (
+              <FlashcardMenuScreen go={go} openFlashcardDeck={openFlashcardDeck} />
+            )}
             {activeScreen === 'flashcards' && (
-              <FlashcardsScreen go={go} progress={learningProgress} setProgress={setLearningProgress} />
+              <FlashcardsScreen
+                key={activeFlashcardDeck}
+                go={go}
+                deck={activeFlashcardDeck}
+                progress={learningProgress}
+                setProgress={setLearningProgress}
+              />
             )}
             {activeScreen === 'quiz' && (
               <QuizScreen go={go} progress={learningProgress} setProgress={setLearningProgress} />
@@ -536,7 +566,7 @@ function HomeScreen({ user, profile, go }) {
                   key={card.id}
                   type="button"
                   className={`learning-card ${card.color}`}
-                  onClick={() => (card.id === 'flashcards' || card.id === 'quiz' ? go(card.id) : undefined)}
+                  onClick={() => (card.id === 'flashcardMenu' || card.id === 'quiz' ? go(card.id) : undefined)}
                 >
                   <span className={`tile-icon ${card.color}`}>
                     <Icon size={25} />
@@ -582,13 +612,83 @@ function DashboardTabs({ activePage, setPage }) {
   )
 }
 
-function FlashcardsScreen({ go, progress, setProgress }) {
+function FlashcardMenuScreen({ go, openFlashcardDeck }) {
+  const flashcardGroups = [
+    {
+      id: 'SOPs',
+      title: 'SOP Lernkarten',
+      subtitle: 'Versorgungspfade und Prozeduren vorbereiten',
+      icon: FileText,
+      color: 'blue',
+    },
+    {
+      id: 'NUN',
+      title: 'NUN Lernkarten',
+      subtitle: 'NUN-Algorithmen später gezielt lernen',
+      icon: Workflow,
+      color: 'violet',
+    },
+    {
+      id: 'Medikamente',
+      title: 'Medikamenten Lernkarten',
+      subtitle: 'Notfallmedikamente strukturiert wiederholen',
+      icon: ClipboardList,
+      color: 'green',
+    },
+  ]
+
+  return (
+    <div className="screen-content">
+      <Header title="Lernkarten" go={go} actions={<BookOpen size={20} />} />
+      <div className="learning-grid flashcard-menu-grid">
+        {flashcardGroups.map((group) => {
+          const Icon = group.icon
+          return (
+            <button
+              key={group.id}
+              type="button"
+              className={`learning-card ${group.color}`}
+              onClick={() => openFlashcardDeck(group.id)}
+            >
+              <span className={`tile-icon ${group.color}`}>
+                <Icon size={25} />
+              </span>
+              <span>
+                <strong>{group.title}</strong>
+                <em>{group.subtitle}</em>
+              </span>
+              <ChevronRight size={18} />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function FlashcardsScreen({ go, deck, progress, setProgress }) {
   const [cardIndex, setCardIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
   const [category, setCategory] = useState('Alle')
-  const cards = sampleFlashcards.filter((card) => category === 'Alle' || card.category === category)
+  const [query, setQuery] = useState('')
+  const [selectedSop, setSelectedSop] = useState(null)
+  const [currentPage, setCurrentPage] = useState(null)
+  const [zoom, setZoom] = useState(100)
+  const deckCards = getFlashcardsForDeck(deck)
+  const search = query.trim().toLowerCase()
+  const cards = deckCards.filter((card) => {
+    const matchesCategory = category === 'Alle' || card.category === category
+    const haystack = [card.topic, card.front, card.back, card.category, ...(card.tags || [])].join(' ').toLowerCase()
+    const matchesSearch = !search || haystack.includes(search)
+    return matchesCategory && matchesSearch
+  })
   const currentCard = cards[cardIndex] || cards[0]
-  const categories = ['Alle', ...new Set(sampleFlashcards.map((card) => card.category))]
+  const categories = deck === 'SOPs'
+    ? ['Alle', ...sopFlashcardCategories]
+    : ['Alle', ...uniqueList(deckCards.map((card) => card.category))]
+  const linkedSop = currentCard?.linkedAlgorithmId
+    ? sopIndex.find((entry) => entry.id === currentCard.linkedAlgorithmId)
+    : null
 
   function markCard(type) {
     if (!currentCard) return
@@ -611,9 +711,34 @@ function FlashcardsScreen({ go, progress, setProgress }) {
     })
   }
 
+  function openLinkedSop() {
+    if (!linkedSop) return
+    setSelectedSop(linkedSop)
+    setCurrentPage(linkedSop.primaryPage)
+    setZoom(100)
+  }
+
+  if (selectedSop) {
+    return (
+      <AlgorithmViewerScreen
+        sop={selectedSop}
+        page={currentPage}
+        setPage={setCurrentPage}
+        zoom={zoom}
+        setZoom={setZoom}
+        onBack={() => setSelectedSop(null)}
+      />
+    )
+  }
+
   return (
     <div className="screen-content">
-      <Header title="Lernkarten" go={go} actions={<BookOpen size={20} />} />
+      <Header title={deck === 'SOPs' ? 'SOP Lernkarten' : 'Lernkarten'} go={go} actions={<BookOpen size={20} />} />
+      <SearchField placeholder="Lernkarte suchen..." value={query} onChange={(value) => {
+        setQuery(value)
+        setCardIndex(0)
+        setIsFlipped(false)
+      }} />
       <ChipRow items={categories} activeItem={category} onSelect={(nextCategory) => {
         setCategory(nextCategory)
         setCardIndex(0)
@@ -626,6 +751,11 @@ function FlashcardsScreen({ go, progress, setProgress }) {
             <strong>{isFlipped ? currentCard.back : currentCard.front}</strong>
             <em>{isFlipped ? 'Rückseite' : 'Tippen zum Umdrehen'}</em>
           </button>
+          <div className="flashcard-meta">
+            <span>{cardIndex + 1} / {cards.length}</span>
+            {currentCard.source && <span>{currentCard.source}</span>}
+            {currentCard.sourcePage && <span>{formatSourcePage(currentCard.sourcePage)}</span>}
+          </div>
           <div className="learning-actions">
             <button type="button" onClick={() => setCardIndex(Math.max(0, cardIndex - 1))}>Vorherige</button>
             <button type="button" onClick={() => setIsFlipped(!isFlipped)}>Umdrehen</button>
@@ -635,6 +765,9 @@ function FlashcardsScreen({ go, progress, setProgress }) {
             <button type="button" onClick={toggleFavoriteCard}>
               {progress.favoriteCards.includes(currentCard.id) ? 'Favorit entfernen' : 'Favorit'}
             </button>
+            {linkedSop && (
+              <button type="button" className="wide-action" onClick={openLinkedSop}>Original-SOP öffnen</button>
+            )}
           </div>
         </>
       ) : (
@@ -721,6 +854,20 @@ function QuizScreen({ go, progress, setProgress }) {
 
 function uniqueList(items) {
   return [...new Set(items)]
+}
+
+function getFlashcardsForDeck(deck) {
+  if (deck === 'SOPs') return sopFlashcards
+  if (deck === 'NUN') return nunFlashcards
+  if (deck === 'Medikamente') return medicationFlashcards
+  return sampleFlashcards
+}
+
+function formatSourcePage(sourcePage) {
+  if (Array.isArray(sourcePage)) {
+    return sourcePage.length === 1 ? `Seite ${sourcePage[0]}` : `Seiten ${sourcePage[0]}-${sourcePage[sourcePage.length - 1]}`
+  }
+  return `Seite ${sourcePage}`
 }
 
 function SopsScreen({ go, isFavorite, toggleFavorite }) {
