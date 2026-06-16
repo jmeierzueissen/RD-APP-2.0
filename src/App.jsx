@@ -11,27 +11,52 @@ import {
   FileText,
   Filter,
   Home,
+  ImagePlus,
   KeyRound,
   Lock,
   LogOut,
   Menu,
   MoreHorizontal,
+  Pencil,
   Phone,
   Plus,
   Search,
   Settings,
   ShieldCheck,
   Star,
+  Trash2,
+  TriangleAlert,
   UserRoundCog,
   Workflow,
 } from 'lucide-react'
 import './App.css'
+import { contactCategories, contactCategoryOptions, defaultContacts } from './data/contacts/defaultContacts'
 import { medicationData } from './medications'
 import { nunIndex } from './data/algorithms/nun/nunIndex'
 import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
 import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
 import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
 import { defaultCalendarMonth, defaultScheduleEntries } from './data/schedules/defaultSchedule'
+import {
+  loadContactFavorites,
+  loadUserContacts,
+  saveContactFavorites,
+  saveUserContacts,
+} from './storage/userContacts'
+import {
+  loadUserProfile,
+  normalizeUserProfile,
+  profileRoleOptions,
+  resetUserProfile,
+  saveUserProfile,
+} from './storage/userProfile'
+import {
+  autoLockOptions,
+  hashPin,
+  isValidPin,
+  loadUserSecurity,
+  saveUserSecurity,
+} from './storage/userSecurity'
 import {
   colorForShiftType,
   createDraftShift,
@@ -84,14 +109,6 @@ const medicines = [
   ['Epinephrin', 'Katecholamin', 'yellow'],
 ]
 
-const contacts = [
-  { group: 'Dienststellenleiter', name: 'Max Mustermann', phone: '0123456789000' },
-  { group: 'Team/Wachenleiter', name: 'Platzhalter Leitung', phone: '0123456789001' },
-  { group: 'Praxisanleiter (PAL)', name: 'Platzhalter PAL', phone: '0123456789002' },
-  { group: 'Notrufnummern', name: 'Notruf 112', phone: '112' },
-  { group: 'Giftnotrufzentrale', name: 'Giftnotruf Platzhalter', phone: '030 19240' },
-]
-
 const algorithmSteps = [
   ['Keine Reaktion?\nKeine normale Atmung?', 'red'],
   ['Notruf 112\nAED holen lassen', 'green'],
@@ -116,6 +133,8 @@ const desktopTabs = [
   { id: 'redList', label: 'Notfallmedikamente', icon: ClipboardList },
   { id: 'emergency', label: 'Notfallnummern', icon: Phone },
   { id: 'favorites', label: 'Favoriten', icon: Star },
+  { id: 'profile', label: 'Mein Profil', icon: CircleUserRound },
+  { id: 'security', label: 'Sicherheit', icon: Lock },
   { id: 'admin', label: 'Admin', icon: ShieldCheck },
 ]
 
@@ -136,6 +155,9 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [loginError, setLoginError] = useState('')
   const [activeScreen, setActiveScreen] = useState('home')
+  const [userProfile, setUserProfile] = useState(loadUserProfile)
+  const [userSecurity, setUserSecurity] = useState(loadUserSecurity)
+  const [isAppUnlocked, setIsAppUnlocked] = useState(() => !loadUserSecurity().appLockEnabled)
   const [selectedWeight, setSelectedWeight] = useState(70)
   const [activeMedicationName, setActiveMedicationName] = useState(null)
   const [showSplash, setShowSplash] = useState(true)
@@ -177,6 +199,14 @@ function App() {
   }, [favorites])
 
   useEffect(() => {
+    saveUserProfile(userProfile)
+  }, [userProfile])
+
+  useEffect(() => {
+    saveUserSecurity(userSecurity)
+  }, [userSecurity])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1800)
     return () => window.clearTimeout(timer)
   }, [])
@@ -211,6 +241,7 @@ function App() {
     }
 
     setCurrentUser(user)
+    setIsAppUnlocked(!userSecurity.appLockEnabled)
     setLoginError('')
     setActiveScreen('home')
   }
@@ -234,14 +265,30 @@ function App() {
     return <LoginScreen onLogin={handleLogin} error={loginError} />
   }
 
+  if (userSecurity.appLockEnabled && !isAppUnlocked) {
+    return (
+      <LockScreen
+        security={userSecurity}
+        setSecurity={setUserSecurity}
+        onUnlock={() => setIsAppUnlocked(true)}
+      />
+    )
+  }
+
   return (
     <main className="app-shell">
       <section className="phone-frame" aria-label="Rettungsdienst App 2.0">
         <div className="phone-screen">
-          <DesktopSidebar active={activeScreen} go={go} user={currentUser} onLogout={() => setCurrentUser(null)} />
+          <DesktopSidebar
+            active={activeScreen}
+            go={go}
+            user={currentUser}
+            profile={userProfile}
+            onLogout={() => setCurrentUser(null)}
+          />
           <StatusBar />
           <div className="screen-body">
-            {activeScreen === 'home' && <HomeScreen user={currentUser} go={go} />}
+            {activeScreen === 'home' && <HomeScreen user={currentUser} profile={userProfile} go={go} />}
             {activeScreen === 'sops' && <SopsScreen go={go} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />}
             {activeScreen === 'nun' && <NunScreen go={go} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />}
             {activeScreen === 'algorithm' && <AlgorithmScreen go={go} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />}
@@ -267,7 +314,20 @@ function App() {
                 toggleFavorite={toggleFavorite}
               />
             )}
-            {activeScreen === 'more' && <MoreScreen user={currentUser} go={go} onLogout={() => setCurrentUser(null)} />}
+            {activeScreen === 'more' && (
+              <MoreScreen user={currentUser} profile={userProfile} go={go} onLogout={() => setCurrentUser(null)} />
+            )}
+            {activeScreen === 'profile' && (
+              <ProfileScreen
+                profile={userProfile}
+                setProfile={setUserProfile}
+                security={userSecurity}
+                go={go}
+              />
+            )}
+            {activeScreen === 'security' && (
+              <SecurityScreen security={userSecurity} setSecurity={setUserSecurity} go={go} />
+            )}
             {activeScreen === 'admin' && <AdminScreen go={go} />}
           </div>
           <BottomNav active={activeScreen} go={go} />
@@ -358,18 +418,24 @@ function Header({ title, go, actions }) {
   )
 }
 
-function HomeScreen({ user, go }) {
+function HomeScreen({ user, profile, go }) {
+  const firstName = profile.firstName || profile.displayName.split(' ')[0] || 'Max'
+  const station = profile.station || (user.station === 'Systemverwaltung' ? 'Wache Mitte' : user.station)
+
   return (
     <div className="screen-content">
       <div className="home-top">
-        <div>
+        <button className="dashboard-profile" type="button" onClick={() => go('profile')}>
           <span>Guten Morgen,</span>
-          <strong>{user.name}</strong>
-        </div>
+          <strong>{firstName}</strong>
+          <em>{profile.role || 'Rettungsdienst'}</em>
+        </button>
         <div className="home-actions">
           <Bell size={22} />
           <span className="badge">1</span>
-          <CircleUserRound size={34} />
+          <button className="avatar-button" type="button" onClick={() => go('profile')} aria-label="Mein Profil öffnen">
+            <ProfileAvatar profile={profile} size="small" />
+          </button>
         </div>
       </div>
 
@@ -380,7 +446,7 @@ function HomeScreen({ user, go }) {
         <span>
           <small>NÃ¤chste Schicht</small>
           <strong>Heute, 07:00 - 19:00 Uhr</strong>
-          <em>RTW 1 | {user.station === 'Systemverwaltung' ? 'Wache Mitte' : user.station}</em>
+          <em>RTW 1 | {station}</em>
         </span>
       </button>
 
@@ -1462,25 +1528,238 @@ function formatDate(date) {
 }
 
 function EmergencyContactsScreen({ go }) {
+  const [query, setQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState('Alle')
+  const [userContacts, setUserContacts] = useState(loadUserContacts)
+  const [favoriteContacts, setFavoriteContacts] = useState(loadContactFavorites)
+  const [showForm, setShowForm] = useState(false)
+  const [editingContactId, setEditingContactId] = useState(null)
+  const [draftContact, setDraftContact] = useState(createContactDraft())
+
+  useEffect(() => {
+    saveUserContacts(userContacts)
+  }, [userContacts])
+
+  useEffect(() => {
+    saveContactFavorites(favoriteContacts)
+  }, [favoriteContacts])
+
+  const mergedContacts = [...defaultContacts, ...userContacts].map((contact) => ({
+    ...contact,
+    favorite: favoriteContacts.includes(contact.id) || contact.favorite,
+  }))
+  const filteredContacts = mergedContacts
+    .filter((contact) => contactMatchesFilter(contact, activeFilter))
+    .filter((contact) => contactMatchesSearch(contact, query))
+    .sort(sortContacts)
+  const highlightedContacts = filteredContacts.filter((contact) => contact.highlight)
+  const normalContacts = filteredContacts.filter((contact) => !contact.highlight)
+  const groupedContacts = groupContacts(normalContacts)
+
+  function toggleContactFavorite(id) {
+    setFavoriteContacts((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))
+  }
+
+  function openNewContact() {
+    setEditingContactId(null)
+    setDraftContact(createContactDraft())
+    setShowForm(true)
+  }
+
+  function openEditContact(contact) {
+    setEditingContactId(contact.id)
+    setDraftContact({ ...contact, favorite: favoriteContacts.includes(contact.id) || contact.favorite })
+    setShowForm(true)
+  }
+
+  function saveContact(event) {
+    event.preventDefault()
+    const prepared = {
+      ...draftContact,
+      id: editingContactId || `user-contact-${Date.now()}`,
+      editable: true,
+      highlight: false,
+      priority: 11,
+    }
+    setUserContacts((current) =>
+      editingContactId ? current.map((contact) => (contact.id === editingContactId ? prepared : contact)) : [...current, prepared],
+    )
+    if (prepared.favorite) {
+      setFavoriteContacts((current) => (current.includes(prepared.id) ? current : [...current, prepared.id]))
+    } else {
+      setFavoriteContacts((current) => current.filter((id) => id !== prepared.id))
+    }
+    setShowForm(false)
+    setEditingContactId(null)
+  }
+
+  function deleteContact(id) {
+    setUserContacts((current) => current.filter((contact) => contact.id !== id))
+    setFavoriteContacts((current) => current.filter((favoriteId) => favoriteId !== id))
+    setShowForm(false)
+    setEditingContactId(null)
+  }
+
   return (
     <div className="screen-content">
-      <Header title="Notfallnummern" go={go} actions={<Phone size={20} />} />
-      <div className="item-list">
-        {contacts.map((contact) => (
-          <a className="contact-row" key={contact.group} href={`tel:${contact.phone.replaceAll(' ', '')}`}>
-            <span className="tile-icon yellow">
-              <Phone size={20} />
-            </span>
-            <span>
-              <small>{contact.group}</small>
-              <strong>{contact.name}</strong>
-              <em>{contact.phone}</em>
-            </span>
-          </a>
+      <Header
+        title="Kontakte"
+        go={go}
+        actions={
+          <button className="icon-button" type="button" onClick={openNewContact} aria-label="Kontakt hinzufügen">
+            <Plus size={20} />
+          </button>
+        }
+      />
+      <SearchField placeholder="Kontakt suchen..." value={query} onChange={setQuery} />
+      <ChipRow
+        items={['Alle', 'Notruf', 'Giftnotruf', 'Leitung', 'Wachen', 'Kliniken', 'Eigene']}
+        activeItem={activeFilter}
+        onSelect={setActiveFilter}
+      />
+      <div className="contact-highlight-grid">
+        {highlightedContacts.map((contact) => (
+          <ContactCard
+            key={contact.id}
+            contact={contact}
+            highlighted
+            onFavorite={toggleContactFavorite}
+            onEdit={openEditContact}
+          />
         ))}
+      </div>
+      {showForm && (
+        <form className="contact-form" onSubmit={saveContact}>
+          <strong>{editingContactId ? 'Kontakt bearbeiten' : 'Kontakt hinzufügen'}</strong>
+          <label>Name<input value={draftContact.name} onChange={(event) => setDraftContact({ ...draftContact, name: event.target.value })} required /></label>
+          <label>
+            Kategorie
+            <select value={draftContact.category} onChange={(event) => setDraftContact({ ...draftContact, category: event.target.value })}>
+              {contactCategoryOptions.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
+          </label>
+          <label>Rolle / Funktion<input value={draftContact.role} onChange={(event) => setDraftContact({ ...draftContact, role: event.target.value })} /></label>
+          <label>Telefonnummer<input value={draftContact.phone} onChange={(event) => setDraftContact({ ...draftContact, phone: event.target.value })} required /></label>
+          <label>Zweite Telefonnummer<input value={draftContact.secondaryPhone || ''} onChange={(event) => setDraftContact({ ...draftContact, secondaryPhone: event.target.value })} /></label>
+          <label>Standort / Wache<input value={draftContact.location || ''} onChange={(event) => setDraftContact({ ...draftContact, location: event.target.value })} /></label>
+          <label>Notiz<input value={draftContact.notes || ''} onChange={(event) => setDraftContact({ ...draftContact, notes: event.target.value })} /></label>
+          <label className="override-toggle">
+            <input type="checkbox" checked={draftContact.favorite} onChange={(event) => setDraftContact({ ...draftContact, favorite: event.target.checked })} />
+            Als Favorit markieren
+          </label>
+          <div className="contact-form-actions">
+            <button type="button" onClick={() => setShowForm(false)}>Abbrechen</button>
+            {editingContactId && (
+              <button type="button" className="danger" onClick={() => deleteContact(editingContactId)}>
+                <Trash2 size={16} />
+                Löschen
+              </button>
+            )}
+            <button type="submit">Speichern</button>
+          </div>
+        </form>
+      )}
+      <div className="contact-groups">
+        {Object.entries(groupedContacts).map(([category, contacts]) => (
+          <section key={category} className="contact-group">
+            <h3>{categoryLabel(category)}</h3>
+            <div className="contact-list-cards">
+              {contacts.map((contact) => (
+                <ContactCard key={contact.id} contact={contact} onFavorite={toggleContactFavorite} onEdit={openEditContact} />
+              ))}
+            </div>
+          </section>
+        ))}
+        {filteredContacts.length === 0 && <div className="empty-state">Kein Kontakt gefunden.</div>}
       </div>
     </div>
   )
+}
+
+function ContactCard({ contact, highlighted = false, onFavorite, onEdit }) {
+  const category = contactCategories.find((item) => item.id === contact.category)
+  const tone = category?.tone || 'blue'
+  const phone = contact.phone?.replaceAll(' ', '')
+  return (
+    <article className={`contact-card ${highlighted ? 'highlighted' : ''} ${tone}`}>
+      <div className="contact-card-top">
+        <span className={`tile-icon ${tone}`}>
+          {contact.category === 'giftnotruf' ? <TriangleAlert size={22} /> : <Phone size={22} />}
+        </span>
+        <span>
+          <small>{contact.role || categoryLabel(contact.category)}</small>
+          <strong>{contact.name}</strong>
+          <em>{contact.phone}{contact.secondaryPhone ? ` · ${contact.secondaryPhone}` : ''}</em>
+        </span>
+        <FavoriteButton active={contact.favorite} onToggle={() => onFavorite(contact.id)} />
+      </div>
+      {(contact.location || contact.notes) && (
+        <p>{[contact.location, contact.notes].filter(Boolean).join(' · ')}</p>
+      )}
+      <div className="contact-card-actions">
+        <a href={`tel:${phone}`}><Phone size={16} />Anrufen</a>
+        {contact.editable && <button type="button" onClick={() => onEdit(contact)}><Pencil size={16} />Bearbeiten</button>}
+        {!contact.editable && <span>Systemkontakt</span>}
+      </div>
+    </article>
+  )
+}
+
+function createContactDraft() {
+  return {
+    name: '',
+    category: 'eigene',
+    role: '',
+    phone: '',
+    secondaryPhone: '',
+    location: '',
+    notes: '',
+    favorite: false,
+  }
+}
+
+function contactMatchesSearch(contact, query) {
+  const search = query.trim().toLowerCase()
+  if (!search) return true
+  return [contact.name, categoryLabel(contact.category), contact.role, contact.phone, contact.secondaryPhone, contact.location, contact.notes]
+    .join(' ')
+    .toLowerCase()
+    .includes(search)
+}
+
+function contactMatchesFilter(contact, filter) {
+  if (filter === 'Alle') return true
+  if (filter === 'Eigene') return contact.editable || contact.category === 'eigene'
+  const category = contactCategories.find((item) => item.id === contact.category)
+  return category?.filter === filter
+}
+
+function sortContacts(a, b) {
+  if (a.category === 'notruf' && b.category !== 'notruf') return -1
+  if (b.category === 'notruf' && a.category !== 'notruf') return 1
+  if (a.category === 'giftnotruf' && b.category !== 'giftnotruf') return -1
+  if (b.category === 'giftnotruf' && a.category !== 'giftnotruf') return 1
+  if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
+  return contactSortWeight(a.category) - contactSortWeight(b.category)
+}
+
+function contactSortWeight(category) {
+  const order = ['notruf', 'giftnotruf', 'dienststellenleitung', 'teamleitung', 'praxisanleitung', 'rettungswache', 'leitstelle', 'krankenhaus', 'station', 'eigene', 'sonstiges']
+  return order.indexOf(category) === -1 ? 99 : order.indexOf(category)
+}
+
+function groupContacts(contacts) {
+  return contacts.reduce((groups, contact) => {
+    const key = contact.favorite ? 'favoriten' : contact.category
+    groups[key] = groups[key] || []
+    groups[key].push(contact)
+    return groups
+  }, {})
+}
+
+function categoryLabel(category) {
+  if (category === 'favoriten') return 'Favoriten'
+  return contactCategories.find((item) => item.id === category)?.label || 'Sonstiges'
 }
 
 function FavoritesScreen({ go, favoriteItems, openFavorite, toggleFavorite }) {
@@ -1505,8 +1784,441 @@ function FavoritesScreen({ go, favoriteItems, openFavorite, toggleFavorite }) {
   )
 }
 
-function MoreScreen({ user, go, onLogout }) {
+function LockScreen({ security, setSecurity, onUnlock }) {
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState('')
+
+  async function unlockApp(event) {
+    event.preventDefault()
+    const enteredHash = await hashPin(pin)
+    if (enteredHash !== security.pinHash) {
+      setError('PIN nicht korrekt.')
+      setPin('')
+      return
+    }
+
+    setSecurity({
+      ...security,
+      lastUnlockedAt: new Date().toISOString(),
+    })
+    onUnlock()
+  }
+
+  return (
+    <main className="app-shell">
+      <section className="phone-frame" aria-label="APP 2.0 Sperrbildschirm">
+        <div className="phone-screen lock-screen">
+          <StatusBar />
+          <form className="lock-panel" onSubmit={unlockApp}>
+            <span className="lock-logo">
+              <BriefcaseMedical size={36} />
+            </span>
+            <h1>APP 2.0 entsperren</h1>
+            <p>Persönliche App-Daten sind lokal geschützt.</p>
+            <input
+              value={pin}
+              onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="current-password"
+              placeholder="PIN"
+              type="password"
+              aria-label="PIN"
+            />
+            {error && <div className="form-error">{error}</div>}
+            <button type="submit" disabled={!isValidPin(pin)}>
+              <Lock size={18} />
+              Entsperren
+            </button>
+            <a className="emergency-call-link" href="tel:112">
+              <Phone size={16} />
+              Notruf 112
+            </a>
+          </form>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function SecurityScreen({ security, setSecurity, go }) {
+  const [mode, setMode] = useState(security.appLockEnabled ? 'change' : 'create')
+  const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [currentPin, setCurrentPin] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const hasPin = Boolean(security.pinHash)
+  const canSave =
+    isValidPin(pin) &&
+    pin === confirmPin &&
+    (!hasPin || mode !== 'change' || isValidPin(currentPin))
+
+  function updatePin(value, setter) {
+    setter(value.replace(/\D/g, '').slice(0, 6))
+  }
+
+  function resetForm(nextMode = mode) {
+    setMode(nextMode)
+    setPin('')
+    setConfirmPin('')
+    setCurrentPin('')
+    setError('')
+  }
+
+  async function savePin(event) {
+    event.preventDefault()
+    setMessage('')
+    if (!isValidPin(pin)) {
+      setError('Die PIN muss 4 bis 6 Ziffern haben.')
+      return
+    }
+    if (pin !== confirmPin) {
+      setError('PIN und Bestätigung stimmen nicht überein.')
+      return
+    }
+    if (hasPin && mode === 'change') {
+      const currentHash = await hashPin(currentPin)
+      if (currentHash !== security.pinHash) {
+        setError('Aktuelle PIN ist nicht korrekt.')
+        return
+      }
+    }
+
+    const pinHash = await hashPin(pin)
+    setSecurity({
+      ...security,
+      pinHash,
+      appLockEnabled: true,
+      lastUnlockedAt: new Date().toISOString(),
+    })
+    resetForm('change')
+    setMessage(hasPin ? 'PIN wurde geändert.' : 'App-Schutz wurde aktiviert.')
+  }
+
+  async function disablePin() {
+    setMessage('')
+    setError('')
+    if (!hasPin) return
+    const currentHash = await hashPin(currentPin)
+    if (currentHash !== security.pinHash) {
+      setError('Zum Deaktivieren bitte die aktuelle PIN eintragen.')
+      return
+    }
+
+    setSecurity({
+      ...security,
+      pinHash: '',
+      appLockEnabled: false,
+      biometricEnabled: false,
+      lastUnlockedAt: '',
+    })
+    resetForm('create')
+    setMessage('App-Schutz wurde deaktiviert.')
+  }
+
+  return (
+    <div className="screen-content">
+      <Header title="Sicherheit" go={go} actions={<Lock size={20} />} />
+      <div className="security-status-card">
+        <span className={`tile-icon ${security.appLockEnabled ? 'green' : 'gray'}`}>
+          <Lock size={22} />
+        </span>
+        <span>
+          <strong>{security.appLockEnabled ? 'App-Schutz aktiv' : 'App-Schutz deaktiviert'}</strong>
+          <em>PIN-Sperre für Profil, Dienstplan, Kontakte und AZK</em>
+        </span>
+      </div>
+
+      <div className="privacy-note">
+        Deine PIN schützt lokale App-Daten auf diesem Gerät. Sie wird nicht im Klartext gespeichert.
+      </div>
+
+      <form className="security-form" onSubmit={savePin}>
+        {hasPin && mode === 'change' && (
+          <label>
+            Aktuelle PIN
+            <input
+              value={currentPin}
+              onChange={(event) => updatePin(event.target.value, setCurrentPin)}
+              inputMode="numeric"
+              type="password"
+              autoComplete="current-password"
+            />
+          </label>
+        )}
+        <label>
+          {hasPin ? 'Neue PIN' : 'PIN erstellen'}
+          <input
+            value={pin}
+            onChange={(event) => updatePin(event.target.value, setPin)}
+            inputMode="numeric"
+            type="password"
+            autoComplete="new-password"
+            placeholder="4 bis 6 Ziffern"
+          />
+        </label>
+        <label>
+          PIN bestätigen
+          <input
+            value={confirmPin}
+            onChange={(event) => updatePin(event.target.value, setConfirmPin)}
+            inputMode="numeric"
+            type="password"
+            autoComplete="new-password"
+          />
+        </label>
+        <label>
+          Automatische Sperre
+          <select
+            value={security.autoLockAfter}
+            onChange={(event) => setSecurity({ ...security, autoLockAfter: event.target.value })}
+          >
+            {autoLockOptions.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="security-feature-row">
+          <span>
+            <strong>Biometrie</strong>
+            <em>Face ID / Touch ID / Android Biometrie später vorbereiten</em>
+          </span>
+          <span className="coming-soon">später</span>
+        </div>
+        <div className="pin-forgot-note">
+          PIN vergessen: In der späteren mobilen App wird hier ein Backup-Code vorbereitet. In dieser Demo kann der lokale App-Schutz über die Geräteeinstellungen bzw. App-Daten zurückgesetzt werden.
+        </div>
+        {error && <div className="form-error">{error}</div>}
+        {message && <div className="form-success">{message}</div>}
+        <div className="security-form-actions">
+          <button type="submit" disabled={!canSave}>
+            {hasPin ? 'PIN ändern' : 'App-Schutz aktivieren'}
+          </button>
+          {hasPin && (
+            <button type="button" className="danger" onClick={disablePin}>
+              PIN deaktivieren
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ProfileScreen({ profile, setProfile, security, go }) {
+  const [draftProfile, setDraftProfile] = useState(() => normalizeUserProfile(profile))
+  const [errors, setErrors] = useState({})
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const phonePattern = /^[0-9+\s()/.-]{4,}$/
+  const isValid =
+    draftProfile.displayName.trim().length > 0 &&
+    (!draftProfile.email || emailPattern.test(draftProfile.email)) &&
+    (!draftProfile.phone || phonePattern.test(draftProfile.phone))
+
+  function updateProfileField(field, value) {
+    setDraftProfile((current) => ({ ...current, [field]: value }))
+  }
+
+  function updateAddressField(field, value) {
+    setDraftProfile((current) => ({
+      ...current,
+      address: {
+        ...current.address,
+        [field]: value,
+      },
+    }))
+  }
+
+  function handleAvatarChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setDraftProfile((current) => ({ ...current, avatarUri: String(reader.result || '') }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function validateProfile() {
+    const nextErrors = {}
+    if (!draftProfile.displayName.trim()) {
+      nextErrors.displayName = 'Bitte einen Anzeigenamen eintragen.'
+    }
+    if (draftProfile.email && !emailPattern.test(draftProfile.email)) {
+      nextErrors.email = 'Bitte eine gültige E-Mail-Adresse eintragen.'
+    }
+    if (draftProfile.phone && !phonePattern.test(draftProfile.phone)) {
+      nextErrors.phone = 'Bitte eine gültige Telefonnummer eintragen.'
+    }
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  function saveProfile(event) {
+    event.preventDefault()
+    if (!validateProfile()) return
+
+    setProfile({
+      ...normalizeUserProfile(draftProfile),
+      displayName: draftProfile.displayName.trim(),
+      firstName: draftProfile.firstName.trim(),
+      lastName: draftProfile.lastName.trim(),
+      username: draftProfile.username.trim(),
+      lastUpdated: new Date().toISOString().slice(0, 10),
+    })
+    go('home')
+  }
+
+  function restoreDefaultProfile() {
+    const restored = resetUserProfile()
+    setDraftProfile(restored)
+    setProfile(restored)
+    setErrors({})
+  }
+
+  return (
+    <div className="screen-content">
+      <Header title="Mein Profil" go={go} actions={<CircleUserRound size={20} />} />
+      <form className="profile-form" onSubmit={saveProfile}>
+        <section className="profile-editor-hero">
+          <ProfileAvatar profile={draftProfile} size="large" />
+          <div className="profile-image-actions">
+            <label className="profile-image-button">
+              <ImagePlus size={16} />
+              Bild ändern
+              <input type="file" accept="image/*" onChange={handleAvatarChange} />
+            </label>
+            <button type="button" onClick={() => updateProfileField('avatarUri', '')}>
+              Standard-Avatar
+            </button>
+            {draftProfile.avatarUri && (
+              <button type="button" className="danger" onClick={() => updateProfileField('avatarUri', '')}>
+                Bild entfernen
+              </button>
+            )}
+          </div>
+        </section>
+
+        <div className="privacy-note">
+          Deine Profildaten werden lokal auf deinem Gerät gespeichert.
+        </div>
+
+        <button className="profile-security-link" type="button" onClick={() => go('security')}>
+          <span className={`tile-icon ${security.appLockEnabled ? 'green' : 'gray'}`}>
+            <Lock size={20} />
+          </span>
+          <span>
+            <strong>{security.appLockEnabled ? 'App-Schutz aktiv' : 'App-Schutz aktivieren'}</strong>
+            <em>PIN erstellen, ändern oder deaktivieren</em>
+          </span>
+          <ChevronRight size={20} />
+        </button>
+
+        <label>
+          Anzeigename / Username
+          <input value={draftProfile.displayName} onChange={(event) => updateProfileField('displayName', event.target.value)} required />
+          {errors.displayName && <small>{errors.displayName}</small>}
+        </label>
+        <label>
+          Username
+          <input value={draftProfile.username} onChange={(event) => updateProfileField('username', event.target.value)} />
+        </label>
+        <div className="profile-form-grid">
+          <label>
+            Vorname
+            <input value={draftProfile.firstName} onChange={(event) => updateProfileField('firstName', event.target.value)} />
+          </label>
+          <label>
+            Nachname
+            <input value={draftProfile.lastName} onChange={(event) => updateProfileField('lastName', event.target.value)} />
+          </label>
+        </div>
+        <label>
+          Rolle / Funktion
+          <select value={draftProfile.role} onChange={(event) => updateProfileField('role', event.target.value)}>
+            <option value="Rettungsdienst">Rettungsdienst</option>
+            {profileRoleOptions.map((role) => (
+              <option key={role} value={role}>{role}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Dienststelle / Rettungswache
+          <input value={draftProfile.station} onChange={(event) => updateProfileField('station', event.target.value)} />
+        </label>
+        <div className="profile-form-grid">
+          <label>
+            Telefonnummer
+            <input value={draftProfile.phone} onChange={(event) => updateProfileField('phone', event.target.value)} />
+            {errors.phone && <small>{errors.phone}</small>}
+          </label>
+          <label>
+            E-Mail
+            <input type="email" value={draftProfile.email} onChange={(event) => updateProfileField('email', event.target.value)} />
+            {errors.email && <small>{errors.email}</small>}
+          </label>
+        </div>
+
+        <section className="profile-address">
+          <strong>Adresse</strong>
+          <label>
+            Straße / Hausnummer
+            <input value={draftProfile.address.street} onChange={(event) => updateAddressField('street', event.target.value)} />
+          </label>
+          <div className="profile-form-grid">
+            <label>
+              PLZ
+              <input value={draftProfile.address.zip} onChange={(event) => updateAddressField('zip', event.target.value)} />
+            </label>
+            <label>
+              Ort
+              <input value={draftProfile.address.city} onChange={(event) => updateAddressField('city', event.target.value)} />
+            </label>
+          </div>
+          <div className="profile-form-grid">
+            <label>
+              Bundesland
+              <input value={draftProfile.address.state} onChange={(event) => updateAddressField('state', event.target.value)} />
+            </label>
+            <label>
+              Land
+              <input value={draftProfile.address.country} onChange={(event) => updateAddressField('country', event.target.value)} />
+            </label>
+          </div>
+        </section>
+
+        <label>
+          Notizen
+          <textarea value={draftProfile.notes} onChange={(event) => updateProfileField('notes', event.target.value)} />
+        </label>
+
+        <div className="profile-form-actions">
+          <button type="button" onClick={() => go('home')}>Abbrechen</button>
+          <button type="button" className="danger" onClick={restoreDefaultProfile}>Profil zurücksetzen</button>
+          <button type="submit" disabled={!isValid}>Speichern</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ProfileAvatar({ profile, size = 'small' }) {
+  if (profile.avatarUri) {
+    return <img className={`profile-avatar ${size}`} src={profile.avatarUri} alt="" />
+  }
+
+  return (
+    <span className={`profile-avatar ${size}`}>
+      <CircleUserRound size={size === 'large' ? 58 : size === 'medium' ? 34 : 28} />
+    </span>
+  )
+}
+
+function MoreScreen({ user, profile, go, onLogout }) {
   const entries = [
+    ['profile', 'Mein Profil', CircleUserRound],
+    ['security', 'Sicherheit', Lock],
     ['schedule', 'Schichtplan', CalendarDays],
     ['emergency', 'Notfallnummern', Phone],
     ['favorites', 'Favoriten', Star],
@@ -1516,13 +2228,13 @@ function MoreScreen({ user, go, onLogout }) {
   return (
     <div className="screen-content">
       <Header title="Mehr" go={go} actions={<Menu size={20} />} />
-      <div className="profile-card">
-        <CircleUserRound size={36} />
+      <button className="profile-card profile-card-button" type="button" onClick={() => go('profile')}>
+        <ProfileAvatar profile={profile} size="medium" />
         <span>
-          <strong>{user.name}</strong>
-          <em>{user.role === 'admin' ? 'Administrator' : 'Benutzer'}</em>
+          <strong>{profile.displayName || user.name}</strong>
+          <em>{profile.role || (user.role === 'admin' ? 'Administrator' : 'Benutzer')}</em>
         </span>
-      </div>
+      </button>
       <div className="item-list">
         {entries.map(([id, label, Icon]) => (
           <button key={id} type="button" className="list-row" onClick={() => go(id)}>
@@ -1589,7 +2301,7 @@ function BottomNav({ active, go }) {
   )
 }
 
-function DesktopSidebar({ active, go, user, onLogout }) {
+function DesktopSidebar({ active, go, user, profile, onLogout }) {
   return (
     <aside className="desktop-sidebar" aria-label="Laptop Navigation">
       <div className="desktop-brand">
@@ -1614,10 +2326,10 @@ function DesktopSidebar({ active, go, user, onLogout }) {
         })}
       </nav>
       <div className="desktop-user">
-        <CircleUserRound size={30} />
+        <ProfileAvatar profile={profile} size="small" />
         <span>
-          <strong>{user.name}</strong>
-          <em>{user.station}</em>
+          <strong>{profile.displayName || user.name}</strong>
+          <em>{profile.station || user.station}</em>
         </span>
       </div>
       <button className="desktop-logout" type="button" onClick={onLogout}>
