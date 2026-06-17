@@ -1261,8 +1261,8 @@ export const emergencyMedications: EmergencyMedication[] = [
       "Mit NUN Hypoglykämie verknüpfen",
       "Unter Hypoglykämie und Stoffwechsel auffindbar machen"
     ],
-    calculatorEnabled: false,
-    calculatorProfiles: ["glukose-20-hypoglykaemie"],
+    calculatorEnabled: true,
+    calculatorProfiles: ["glukose20-hypoglykaemie"],
     sopLinks: ["SOP V11 Hypoglykämie"],
     nunLinks: ["NUN Hypoglykämie"],
     source: "SOP V11 Hypoglykämie / Fachinfo prüfen",

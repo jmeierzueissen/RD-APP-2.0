@@ -31,19 +31,31 @@ export function calculateAgeBandDose(ageMonths, ageYears, rules) {
 export function calculateMedicationDose({ rule, weightKg, ageYears, ageMonths, concentrationMgPerMl, rangeMode }) {
   const warnings = []
   const effectiveConcentration = Number(concentrationMgPerMl || rule.concentrationMgPerMl)
+  const calculationType = rule.calculationType || rule.doseType
+  const isLocked = Boolean(
+    rule.lockedUntilVerified
+    || rule.locked
+    || calculationType === 'manual_check_required'
+    || calculationType === 'perfusion'
+    || calculationType === 'check_required',
+  )
 
-  if (rule.locked || rule.doseType === 'check_required') {
+  if (isLocked) {
     return {
       blocked: true,
-      warnings: ['Dieses Profil ist als zu prüfen markiert. Keine automatische Berechnung aktiv.', ...rule.notes],
+      warnings: [
+        'Rechenprofil vorhanden, Dosierung muss vor Aktivierung anhand SOP/Fachinfo geprüft werden.',
+        ...(rule.warnings || []),
+        ...(rule.notes || []),
+      ],
     }
   }
 
-  if (!Number(weightKg) && ['mg_per_kg', 'mg_per_kg_range'].includes(rule.doseType)) {
+  if (!Number(weightKg) && ['mg_per_kg', 'mg_per_kg_range'].includes(calculationType)) {
     return { blocked: true, warnings: ['Gewicht muss > 0 kg sein.'] }
   }
 
-  if (rule.requiresConcentrationInput && !effectiveConcentration) {
+  if ((rule.requiresConcentration || rule.requiresConcentrationInput) && !effectiveConcentration) {
     warnings.push('Konzentration mg/ml muss > 0 sein, damit ml berechnet werden können.')
   }
 
@@ -52,25 +64,29 @@ export function calculateMedicationDose({ rule, weightKg, ageYears, ageMonths, c
   let doseLabel = ''
   let ageBand = null
 
-  if (rule.doseType === 'fixed_mg') {
-    doseMg = Number(rule.fixedDoseMg)
-    doseLabel = `${formatNumber(rule.fixedDoseMg)} mg fix`
+  if (calculationType === 'fixed' || calculationType === 'fixed_mg') {
+    doseMg = Number(rule.doseMg ?? rule.fixedDoseMg)
+    doseLabel = `${formatNumber(doseMg)} mg fix`
   }
 
-  if (rule.doseType === 'mg_per_kg') {
+  if (calculationType === 'mg_per_kg') {
     doseMg = calculateMgFromMgPerKg(weightKg, rule.doseMgPerKg)
     doseLabel = `${formatNumber(rule.doseMgPerKg)} mg/kg`
   }
 
-  if (rule.doseType === 'mg_per_kg_range') {
+  if (calculationType === 'mg_per_kg_range') {
     doseRange = calculateMgRangeFromMgPerKg(weightKg, rule.doseMinMgPerKg, rule.doseMaxMgPerKg)
-    const selectedDose = rangeMode === 'max' ? rule.doseMaxMgPerKg : rule.defaultDoseMgPerKg
+    const selectedDose = rangeMode === 'max'
+      ? rule.doseMaxMgPerKg
+      : rangeMode === 'min'
+        ? rule.doseMinMgPerKg
+        : rule.defaultDoseMgPerKg || rule.doseMinMgPerKg
     doseMg = calculateMgFromMgPerKg(weightKg, selectedDose)
     doseLabel = `${formatNumber(rule.doseMinMgPerKg)}-${formatNumber(rule.doseMaxMgPerKg)} mg/kg`
   }
 
-  if (rule.doseType === 'age_band_fixed_mg') {
-    ageBand = calculateAgeBandDose(ageMonths, ageYears, rule.ageBands)
+  if (calculationType === 'age_band' || calculationType === 'age_band_fixed_mg') {
+    ageBand = calculateAgeBandDose(ageMonths, ageYears, rule.ageBands || defaultBuccolamAgeBands)
     if (!ageBand) {
       return { blocked: true, warnings: ['Kein passendes Altersband gefunden. Kinder-SOP prüfen.'] }
     }
@@ -103,6 +119,13 @@ export function formatNumber(value) {
     maximumFractionDigits: 2,
   })
 }
+
+const defaultBuccolamAgeBands = [
+  { minMonths: 3, maxMonthsExclusive: 12, fixedDoseMg: 2.5, label: '3 Monate bis < 1 Jahr' },
+  { minMonths: 12, maxMonthsExclusive: 60, fixedDoseMg: 5, label: '1 Jahr bis < 5 Jahre' },
+  { minMonths: 60, maxMonthsExclusive: 120, fixedDoseMg: 7.5, label: '5 Jahre bis < 10 Jahre' },
+  { minMonths: 120, maxMonthsExclusive: 216, fixedDoseMg: 10, label: '10 bis 18 Jahre' },
+]
 
 function round(value) {
   return Math.round(Number(value || 0) * 100) / 100

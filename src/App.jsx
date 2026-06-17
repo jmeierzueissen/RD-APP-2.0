@@ -39,7 +39,7 @@ import { contactCategories, contactCategoryOptions, defaultContacts } from './da
 import { emergencyMedications } from './data/medications/emergencyMedications'
 import { nunIndex } from './data/algorithms/nun/nunIndex'
 import { sopIndex, sopSections } from './data/algorithms/sop/sopIndex'
-import { medicationCalculatorRules } from './data/medications/calculators/medicationCalculatorRules'
+import { doseProfiles as medicationCalculatorRules } from './data/medications/calculatorProfiles'
 import { calculateMedicationDose, formatNumber } from './data/medications/calculators/calculateMedication'
 import { defaultCalendarMonth, defaultScheduleEntries } from './data/schedules/defaultSchedule'
 import { medicationFlashcards } from './data/learning/flashcards/medicationFlashcards'
@@ -159,6 +159,21 @@ const sopFlashcardCategories = [
   'Stoffwechsel',
 ]
 
+const nunFlashcardCategories = [
+  'Grundlagen',
+  'Basisversorgung',
+  'Atemweg / Atmung',
+  'Kreislauf / Schock',
+  'Reanimation',
+  'Kardiologie',
+  'Neurologie',
+  'Trauma',
+  'Pädiatrie',
+  'Medikamente / Analgesie',
+  'Organisation',
+  'Transport / Übergabe',
+]
+
 const algorithmSteps = [
   ['Keine Reaktion?\nKeine normale Atmung?', 'red'],
   ['Notruf 112\nAED holen lassen', 'green'],
@@ -213,6 +228,7 @@ function App() {
   const [activeFlashcardDeck, setActiveFlashcardDeck] = useState('Medikamente')
   const [selectedWeight, setSelectedWeight] = useState(70)
   const [activeMedicationName, setActiveMedicationName] = useState(null)
+  const [activeCalculatorMedicationId, setActiveCalculatorMedicationId] = useState(null)
   const [showSplash, setShowSplash] = useState(true)
   const [favorites, setFavorites] = useState(() => {
     try {
@@ -363,7 +379,14 @@ function App() {
             {activeScreen === 'nun' && <NunScreen go={go} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />}
             {activeScreen === 'algorithm' && <AlgorithmScreen go={go} isFavorite={isFavorite} toggleFavorite={toggleFavorite} />}
             {activeScreen === 'calculator' && (
-              <CalculatorScreen go={go} weight={selectedWeight} setWeight={setSelectedWeight} dose={dose} />
+              <CalculatorScreen
+                key={activeCalculatorMedicationId || 'calculator-default'}
+                go={go}
+                weight={selectedWeight}
+                setWeight={setSelectedWeight}
+                dose={dose}
+                initialMedicationId={activeCalculatorMedicationId}
+              />
             )}
             {activeScreen === 'redList' && (
               <RedListScreen
@@ -372,6 +395,10 @@ function App() {
                 toggleFavorite={toggleFavorite}
                 initialMedicationName={activeMedicationName}
                 clearInitialMedication={() => setActiveMedicationName(null)}
+                openMedicationCalculator={(medicationId) => {
+                  setActiveCalculatorMedicationId(medicationId)
+                  setActiveScreen('calculator')
+                }}
               />
             )}
             {activeScreen === 'schedule' && <ScheduleScreen go={go} />}
@@ -685,9 +712,11 @@ function FlashcardsScreen({ go, deck, progress, setProgress }) {
   const currentCard = cards[cardIndex] || cards[0]
   const categories = deck === 'SOPs'
     ? ['Alle', ...sopFlashcardCategories]
+    : deck === 'NUN'
+      ? ['Alle', ...nunFlashcardCategories]
     : ['Alle', ...uniqueList(deckCards.map((card) => card.category))]
-  const linkedSop = currentCard?.linkedAlgorithmId
-    ? sopIndex.find((entry) => entry.id === currentCard.linkedAlgorithmId)
+  const linkedAlgorithm = currentCard?.linkedAlgorithmId
+    ? getLinkedFlashcardAlgorithm(deck, currentCard.linkedAlgorithmId)
     : null
 
   function markCard(type) {
@@ -712,10 +741,10 @@ function FlashcardsScreen({ go, deck, progress, setProgress }) {
   }
 
   function openLinkedSop() {
-    if (!linkedSop) return
-    setSelectedSop(linkedSop)
-    setCurrentPage(linkedSop.primaryPage)
-    setZoom(100)
+    if (!linkedAlgorithm) return
+    setSelectedSop(linkedAlgorithm)
+    setCurrentPage(linkedAlgorithm.primaryPage)
+    setZoom('page-fit')
   }
 
   if (selectedSop) {
@@ -733,7 +762,7 @@ function FlashcardsScreen({ go, deck, progress, setProgress }) {
 
   return (
     <div className="screen-content">
-      <Header title={deck === 'SOPs' ? 'SOP Lernkarten' : 'Lernkarten'} go={go} actions={<BookOpen size={20} />} />
+      <Header title={deck === 'SOPs' ? 'SOP Lernkarten' : deck === 'NUN' ? 'NUN Lernkarten' : 'Lernkarten'} go={go} actions={<BookOpen size={20} />} />
       <SearchField placeholder="Lernkarte suchen..." value={query} onChange={(value) => {
         setQuery(value)
         setCardIndex(0)
@@ -765,8 +794,10 @@ function FlashcardsScreen({ go, deck, progress, setProgress }) {
             <button type="button" onClick={toggleFavoriteCard}>
               {progress.favoriteCards.includes(currentCard.id) ? 'Favorit entfernen' : 'Favorit'}
             </button>
-            {linkedSop && (
-              <button type="button" className="wide-action" onClick={openLinkedSop}>Original-SOP öffnen</button>
+            {linkedAlgorithm && (
+              <button type="button" className="wide-action" onClick={openLinkedSop}>
+                {deck === 'NUN' ? 'Original-NUN öffnen' : 'Original-SOP öffnen'}
+              </button>
             )}
           </div>
         </>
@@ -863,11 +894,23 @@ function getFlashcardsForDeck(deck) {
   return sampleFlashcards
 }
 
+function getLinkedFlashcardAlgorithm(deck, linkedAlgorithmId) {
+  if (deck === 'NUN') return nunIndex.find((entry) => entry.id === linkedAlgorithmId)
+  if (deck === 'SOPs') return sopIndex.find((entry) => entry.id === linkedAlgorithmId)
+  return null
+}
+
 function formatSourcePage(sourcePage) {
   if (Array.isArray(sourcePage)) {
     return sourcePage.length === 1 ? `Seite ${sourcePage[0]}` : `Seiten ${sourcePage[0]}-${sourcePage[sourcePage.length - 1]}`
   }
   return `Seite ${sourcePage}`
+}
+
+function formatPatientGroup(patientGroup) {
+  if (patientGroup === 'child') return 'Kind'
+  if (patientGroup === 'adult') return 'Erwachsene'
+  return 'Alle'
 }
 
 function SopsScreen({ go, isFavorite, toggleFavorite }) {
@@ -889,7 +932,7 @@ function SopsScreen({ go, isFavorite, toggleFavorite }) {
   function openSop(entry) {
     setSelectedSop(entry)
     setCurrentPage(entry.primaryPage)
-    setZoom(100)
+    setZoom('page-fit')
   }
 
   if (selectedSop) {
@@ -941,9 +984,12 @@ function SopsScreen({ go, isFavorite, toggleFavorite }) {
 
 function AlgorithmViewerScreen({ sop, page, setPage, zoom, setZoom, onBack }) {
   const pageIndex = sop.pages.indexOf(page)
-  const pdfUrl = `/${sop.pdfFile}#page=${page}&zoom=${zoom}`
+  const isPageFit = zoom === 'page-fit'
+  const pdfParams = isPageFit ? `page=${page}&zoom=page-fit&view=Fit` : `page=${page}&zoom=${zoom}`
+  const pdfUrl = `/${sop.pdfFile}#${pdfParams}`
   const canGoBack = pageIndex > 0
   const canGoForward = pageIndex < sop.pages.length - 1
+  const numericZoom = typeof zoom === 'number' ? zoom : 100
 
   return (
     <div className="screen-content sop-viewer-screen">
@@ -958,9 +1004,9 @@ function AlgorithmViewerScreen({ sop, page, setPage, zoom, setZoom, onBack }) {
         <button type="button" disabled={!canGoForward} onClick={() => setPage(sop.pages[pageIndex + 1])}>Weiter</button>
       </div>
       <div className="pdf-toolbar">
-        <button type="button" onClick={() => setZoom(Math.max(60, zoom - 20))}>-</button>
-        <span>{zoom}%</span>
-        <button type="button" onClick={() => setZoom(Math.min(180, zoom + 20))}>+</button>
+        <button type="button" onClick={() => setZoom(Math.max(60, numericZoom - 20))}>-</button>
+        <span>{isPageFit ? 'Ganze Seite' : `${zoom}%`}</span>
+        <button type="button" onClick={() => setZoom(Math.min(180, numericZoom + 20))}>+</button>
         <a href={pdfUrl} target="_blank" rel="noreferrer">Vollbild</a>
       </div>
       <div className="pdf-page-frame">
@@ -991,7 +1037,7 @@ function NunScreen({ go, isFavorite, toggleFavorite }) {
   function openNun(item) {
     setSelectedNun(item)
     setCurrentPage(item.primaryPage)
-    setZoom(100)
+    setZoom('page-fit')
   }
 
   if (selectedNun) {
@@ -1116,26 +1162,31 @@ function AlgorithmScreen({ go, isFavorite, toggleFavorite }) {
   )
 }
 
-function CalculatorScreen({ go, weight, setWeight }) {
+function CalculatorScreen({ go, weight, setWeight, initialMedicationId }) {
   const [activeTool, setActiveTool] = useState('medication')
-  const [patientGroup, setPatientGroup] = useState('adult')
+  const initialRule = medicationCalculatorRules.find((rule) => rule.medicationId === initialMedicationId) || medicationCalculatorRules[0]
+  const [patientGroup, setPatientGroup] = useState(initialRule.patientGroup === 'child' ? 'child' : 'adult')
   const [ageYears, setAgeYears] = useState(40)
   const [ageMonths, setAgeMonths] = useState(0)
-  const [selectedMedicationId, setSelectedMedicationId] = useState('adrenalin')
-  const [selectedRuleId, setSelectedRuleId] = useState('adrenalin-cpr-adult-iv-io')
+  const [selectedMedicationId, setSelectedMedicationId] = useState(initialRule.medicationId)
+  const [selectedRuleId, setSelectedRuleId] = useState(initialRule.id)
   const [rangeMode, setRangeMode] = useState('default')
-  const [customConcentration, setCustomConcentration] = useState('1')
+  const [customConcentration, setCustomConcentration] = useState(initialRule.concentrationMgPerMl || '1')
 
-  const availableMedications = [...new Map(medicationCalculatorRules.map((rule) => [rule.medicationId, rule.name])).entries()]
+  const availableMedications = [...new Map(medicationCalculatorRules.map((rule) => [rule.medicationId, rule.medicationName || rule.name])).entries()]
   const medicationRules = medicationCalculatorRules.filter((rule) => rule.medicationId === selectedMedicationId)
   const selectedRule = medicationCalculatorRules.find((rule) => rule.id === selectedRuleId) || medicationRules[0]
-  const concentration = selectedRule?.requiresConcentrationInput ? Number(customConcentration) : selectedRule?.concentrationMgPerMl
+  const concentration = selectedRule?.requiresConcentration || selectedRule?.requiresConcentrationInput
+    ? Number(customConcentration)
+    : selectedRule?.concentrationMgPerMl
   const result = selectedRule
     ? calculateMedicationDose({ rule: selectedRule, weightKg: weight, ageYears, ageMonths, concentrationMgPerMl: concentration, rangeMode })
     : null
+  const selectedCalculationType = selectedRule?.calculationType || selectedRule?.doseType
 
   function selectMedication(id) {
     const firstRule = medicationCalculatorRules.find((rule) => rule.medicationId === id)
+    if (!firstRule) return
     setSelectedMedicationId(id)
     setSelectedRuleId(firstRule.id)
     setPatientGroup(firstRule.patientGroup === 'child' ? 'child' : 'adult')
@@ -1145,6 +1196,7 @@ function CalculatorScreen({ go, weight, setWeight }) {
 
   function selectRule(id) {
     const nextRule = medicationCalculatorRules.find((rule) => rule.id === id)
+    if (!nextRule) return
     setSelectedRuleId(id)
     setPatientGroup(nextRule.patientGroup === 'child' ? 'child' : patientGroup)
     setRangeMode('default')
@@ -1157,7 +1209,7 @@ function CalculatorScreen({ go, weight, setWeight }) {
     setAgeMonths(0)
     setWeight(70)
     setSelectedMedicationId('adrenalin')
-    setSelectedRuleId('adrenalin-cpr-adult-iv-io')
+    setSelectedRuleId('adrenalin-cpr-erwachsene')
     setRangeMode('default')
     setCustomConcentration('1')
   }
@@ -1181,7 +1233,7 @@ function CalculatorScreen({ go, weight, setWeight }) {
       <Header title="Medikamentenrechner" go={go} actions={<Settings size={20} />} />
       <CalculatorToolGrid activeTool={activeTool} onSelect={setActiveTool} />
       <div className="calculator-safety">
-        <strong>Berechnung ersetzt keine Prüfung der gültigen SOP/NUN und keine fachliche Verantwortung.</strong>
+        <strong>Diese Berechnung ersetzt keine gültige SOP, Fachinformation oder fachliche Prüfung.</strong>
         <span>Vor Gabe: richtiger Patient, richtiges Medikament, richtige Dosis, richtiger Applikationsweg, richtige Zeit.</span>
         {patientGroup === 'child' && <b>Pädiatrische Dosierung prüfen.</b>}
       </div>
@@ -1210,17 +1262,23 @@ function CalculatorScreen({ go, weight, setWeight }) {
             {medicationRules.map((rule) => <option key={rule.id} value={rule.id}>{rule.indication} · {rule.route}</option>)}
           </select>
         </label>
+        {medicationRules.length > 1 && (
+          <div className="calculator-profile-note">
+            Mehrere Profile verfügbar. Bitte Indikation/Rechenprofil bewusst auswählen.
+          </div>
+        )}
         <label>Applikationsweg<input value={selectedRule.route} readOnly /></label>
+        <label>Patientengruppe Profil<input value={formatPatientGroup(selectedRule.patientGroup)} readOnly /></label>
         <label>
           Konzentration / Ampulle
           <input
             inputMode="decimal"
-            value={selectedRule.requiresConcentrationInput ? customConcentration : selectedRule.concentrationLabel || selectedRule.concentrationMgPerMl || 'zu prüfen'}
+            value={(selectedRule.requiresConcentration || selectedRule.requiresConcentrationInput) ? customConcentration : selectedRule.concentrationLabel || selectedRule.concentrationMgPerMl || 'zu prüfen'}
             onChange={(event) => setCustomConcentration(event.target.value)}
-            readOnly={!selectedRule.requiresConcentrationInput}
+            readOnly={!(selectedRule.requiresConcentration || selectedRule.requiresConcentrationInput)}
           />
         </label>
-        {selectedRule.doseType === 'mg_per_kg_range' && (
+        {selectedCalculationType === 'mg_per_kg_range' && (
           <div className="range-choice">
             {['min', 'default', 'max'].map((mode) => (
               <button key={mode} type="button" className={rangeMode === mode ? 'active' : ''} onClick={() => setRangeMode(mode)}>
@@ -1240,10 +1298,10 @@ function CalculatorScreen({ go, weight, setWeight }) {
         <div><span>Maximaldosis</span><b>{selectedRule.maxDoseMg ? `${formatNumber(selectedRule.maxDoseMg)} mg` : '-'}</b></div>
         <hr />
         <span>Hinweise</span>
-        {[...(result?.warnings || []), ...selectedRule.notes].map((note) => <small key={note}>{note}</small>)}
+        {uniqueList([...(result?.warnings || []), ...(selectedRule.warnings || []), ...(selectedRule.notes || [])]).map((note) => <small key={note}>{note}</small>)}
         <hr />
         <span>Quelle</span>
-        <small>{selectedRule.source} · Version: {selectedRule.version}{selectedRule.sourcePage ? ` · Seite ${selectedRule.sourcePage}` : ''}</small>
+        <small>{selectedRule.source}{selectedRule.version ? ` · Version: ${selectedRule.version}` : ''}{selectedRule.sourcePage ? ` · ${formatSourcePage(selectedRule.sourcePage)}` : ''}</small>
       </div>
       <div className="calculator-actions">
         <button type="button" disabled={result?.blocked}>Berechnung übernehmen</button>
@@ -1275,7 +1333,7 @@ function CalculatorToolGrid({ activeTool, onSelect }) {
     </div>
   )
 }
-function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, clearInitialMedication }) {
+function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, clearInitialMedication, openMedicationCalculator }) {
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('Alle')
   const [selectedMedication, setSelectedMedication] = useState(() => {
@@ -1315,6 +1373,7 @@ function RedListScreen({ go, isFavorite, toggleFavorite, initialMedicationName, 
         onBack={() => setSelectedMedication(null)}
         isFavorite={isFavorite}
         toggleFavorite={toggleFavorite}
+        openMedicationCalculator={openMedicationCalculator}
       />
     )
   }
@@ -1422,7 +1481,7 @@ function medicationMatchesCategory(medication, category) {
   return filters[category]?.some((needle) => haystack.includes(needle)) ?? true
 }
 
-function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite }) {
+function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite, openMedicationCalculator }) {
   const id = favoriteId('medication', medication.name)
 
   return (
@@ -1476,7 +1535,7 @@ function MedicationDetailScreen({ medication, onBack, isFavorite, toggleFavorite
           <p>Rechner verfügbar: <strong>{medication.calculatorEnabled ? 'Ja' : 'Nein'}</strong></p>
           {medication.calculatorEnabled && (
             <>
-              <button className="dose-calc-link" type="button">
+              <button className="dose-calc-link" type="button" onClick={() => openMedicationCalculator(medication.id)}>
                 <Calculator size={16} />
                 Dosis berechnen
               </button>

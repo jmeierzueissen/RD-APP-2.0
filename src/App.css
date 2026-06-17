@@ -1093,7 +1093,15 @@ button {
   font-size: 11px;
 }
 
+.sop-viewer-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  overflow: auto;
+}
+
 .pdf-toolbar {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 7px;
@@ -1129,23 +1137,28 @@ button {
 }
 
 .pdf-page-frame {
-  min-height: 520px;
+  flex: 0 0 auto;
+  height: clamp(480px, calc(100vh - 250px), 640px);
+  min-height: 480px;
   overflow: auto;
   display: grid;
-  place-items: stretch;
+  place-items: center;
   background: rgba(2, 6, 10, 0.72);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  scrollbar-gutter: stable both-edges;
 }
 
 .pdf-page-frame iframe {
   width: 100%;
-  min-height: 520px;
+  height: 100%;
+  min-height: 0;
   border: 0;
   background: #101820;
 }
 
 .pdf-missing-note {
+  flex: 0 0 auto;
   margin-top: 10px;
   padding: 9px 10px;
   color: var(--muted);
