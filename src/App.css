@@ -1545,6 +1545,88 @@ button {
   background: rgba(255, 211, 61, 0.08);
 }
 
+.burn-result-card {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+  padding: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(255, 77, 82, 0.24), rgba(255, 138, 42, 0.16));
+  border: 1px solid rgba(255, 138, 42, 0.38);
+  border-radius: var(--radius);
+}
+
+.burn-result-card span,
+.burn-result-card em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.burn-result-card strong {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.burn-result-card b {
+  color: #ffd8d8;
+  font-size: 11px;
+}
+
+.burn-result-card.warning {
+  border-color: rgba(255, 77, 82, 0.55);
+  background: rgba(80, 18, 24, 0.82);
+}
+
+.burn-region-grid {
+  display: grid;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.burn-region-card {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  background: rgba(8, 16, 25, 0.88);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+}
+
+.burn-region-card strong {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+}
+
+.burn-region-card span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.burn-fraction-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.burn-fraction-row button {
+  min-height: 32px;
+  padding: 0 4px;
+  color: #fff;
+  background: rgba(18, 28, 40, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.burn-fraction-row button.active {
+  color: #fff;
+  background: rgba(255, 138, 42, 0.28);
+  border-color: rgba(255, 138, 42, 0.58);
+}
+
 .medicine-row {
   grid-template-columns: 20px minmax(0, 1fr) auto;
   padding: 0 0 0 2px;

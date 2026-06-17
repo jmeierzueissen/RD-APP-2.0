@@ -48,6 +48,7 @@ import { sampleFlashcards } from './data/learning/flashcards/sampleFlashcards'
 import { sopFlashcards } from './data/learning/flashcards/sopFlashcards'
 import { sampleQuizQuestions } from './data/learning/quizzes/sampleQuizzes'
 import { loadLearningProgress, saveLearningProgress } from './storage/learningProgress'
+import { burnSurfaceValues, calculateBurnTbsa } from './screens/calculators/BurnCalculatorScreen'
 import {
   loadContactFavorites,
   loadUserContacts,
@@ -1214,6 +1215,16 @@ function CalculatorScreen({ go, weight, setWeight, initialMedicationId }) {
     setCustomConcentration('1')
   }
 
+  if (activeTool === 'burn') {
+    return (
+      <BurnCalculatorScreen
+        go={go}
+        activeTool={activeTool}
+        setActiveTool={setActiveTool}
+      />
+    )
+  }
+
   if (activeTool !== 'medication') {
     return (
       <div className="screen-content">
@@ -1307,6 +1318,163 @@ function CalculatorScreen({ go, weight, setWeight, initialMedicationId }) {
         <button type="button" disabled={result?.blocked}>Berechnung übernehmen</button>
         <button type="button" onClick={resetCalculator}>Zurücksetzen</button>
       </div>
+    </div>
+  )
+}
+
+const burnRegionLabels = {
+  headNeck: 'Kopf/Hals',
+  anteriorTrunk: 'vorderer Rumpf',
+  posteriorTrunk: 'hinterer Rumpf',
+  rightArm: 'rechter Arm',
+  leftArm: 'linker Arm',
+  rightLeg: 'rechtes Bein',
+  leftLeg: 'linkes Bein',
+  rightButtock: 'Gesäß rechts',
+  leftButtock: 'Gesäß links',
+  genitalPerineum: 'Genital/Perineum',
+}
+
+const burnAgeOptions = [
+  { id: 'baby0', label: '0 Jahre / Baby' },
+  { id: 'year1', label: '1 Jahr' },
+  { id: 'year5', label: '5 Jahre' },
+  { id: 'year10', label: '10 Jahre' },
+  { id: 'year15', label: '15 Jahre' },
+  { id: 'adult', label: 'Erwachsen' },
+]
+
+const burnFractions = [
+  { label: '0 %', value: 0 },
+  { label: '25 %', value: 0.25 },
+  { label: '50 %', value: 0.5 },
+  { label: '75 %', value: 0.75 },
+  { label: '100 %', value: 1 },
+]
+
+function BurnCalculatorScreen({ go, activeTool, setActiveTool }) {
+  const [ageModel, setAgeModel] = useState('adult')
+  const [regionFractions, setRegionFractions] = useState({})
+  const [palmCount, setPalmCount] = useState(0)
+  const [handoffNote, setHandoffNote] = useState('')
+  const values = burnSurfaceValues[ageModel]
+  const result = calculateBurnTbsa(values, regionFractions, Number(palmCount || 0))
+  const usedRegions = Object.entries(regionFractions)
+    .filter(([, fraction]) => fraction > 0)
+    .map(([region, fraction]) => ({
+      region,
+      label: burnRegionLabels[region],
+      fraction,
+      percent: (values[region] || 0) * fraction,
+    }))
+  const selectedAge = burnAgeOptions.find((option) => option.id === ageModel)
+  const modelLabel = ageModel === 'adult' ? 'Erwachsene / Neunerregel nach Wallace' : 'Lund-Browder Kinder'
+
+  function setRegionFraction(region, fraction) {
+    setRegionFractions((current) => ({
+      ...current,
+      [region]: fraction,
+    }))
+  }
+
+  function resetBurnCalculator() {
+    setAgeModel('adult')
+    setRegionFractions({})
+    setPalmCount(0)
+    setHandoffNote('')
+  }
+
+  function rememberForHandoff() {
+    setHandoffNote(`Für Übergabe gemerkt: ${formatNumber(result.total)} % KOF/TBSA · ${modelLabel}`)
+  }
+
+  return (
+    <div className="screen-content burn-calculator-screen">
+      <Header title="Verbrennungsrechner" go={go} actions={<Settings size={20} />} />
+      <CalculatorToolGrid activeTool={activeTool} onSelect={setActiveTool} />
+      <div className={`burn-result-card ${result.capped ? 'warning' : ''}`}>
+        <span>Geschätzte verbrannte KOF/TBSA</span>
+        <strong>{formatNumber(result.total)} %</strong>
+        <em>{modelLabel}</em>
+        {result.capped && <b>Summe über 100 %. Ergebnis wurde auf 100 % begrenzt.</b>}
+      </div>
+      <div className="calculator-safety">
+        <strong>Nur Verbrennungen ab Grad 2 mitzählen.</strong>
+        <span>Reine Rötung / Grad 1 nicht in die Prozentberechnung einbeziehen.</span>
+        <span>Berechnung ist eine Schätzung und ersetzt keine klinische Beurteilung.</span>
+        {ageModel !== 'adult' && <b>Lund-Browder-Modell verwendet.</b>}
+      </div>
+      <div className="calculator-form">
+        <label>
+          Patientengruppe / Alter
+          <select value={ageModel} onChange={(event) => setAgeModel(event.target.value)}>
+            {burnAgeOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Handflächenregel
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={palmCount}
+            onChange={(event) => setPalmCount(Math.max(0, Number(event.target.value)))}
+          />
+        </label>
+        <div className="calculator-profile-note">
+          Jede gesamte Patient*innenhand inkl. Finger entspricht ca. 1 % KOF.
+        </div>
+      </div>
+      <div className="burn-region-grid">
+        {Object.keys(burnRegionLabels)
+          .filter((region) => values[region] !== undefined)
+          .map((region) => (
+            <div key={region} className="burn-region-card">
+              <div>
+                <strong>{burnRegionLabels[region]}</strong>
+                <span>{formatNumber(values[region])} % Gesamtregion</span>
+              </div>
+              <div className="burn-fraction-row">
+                {burnFractions.map((fraction) => (
+                  <button
+                    key={fraction.label}
+                    type="button"
+                    className={(regionFractions[region] || 0) === fraction.value ? 'active' : ''}
+                    onClick={() => setRegionFraction(region, fraction.value)}
+                  >
+                    {fraction.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+      </div>
+      <div className="dose-card">
+        <span>Genutzte Regionen</span>
+        {usedRegions.length > 0 ? (
+          usedRegions.map((entry) => (
+            <div key={entry.region}>
+              <span>{entry.label} ({formatNumber(entry.fraction * 100)} %)</span>
+              <b>{formatNumber(entry.percent)} %</b>
+            </div>
+          ))
+        ) : (
+          <small>Noch keine Körperregion ausgewählt.</small>
+        )}
+        <div>
+          <span>Handflächen-Zusatz</span>
+          <b>{formatNumber(Number(palmCount || 0))} %</b>
+        </div>
+        <hr />
+        <small>Altersmodell: {selectedAge?.label} · {modelLabel}</small>
+      </div>
+      <div className="calculator-actions">
+        <button type="button" onClick={resetBurnCalculator}>Zurücksetzen</button>
+        <button type="button" onClick={rememberForHandoff}>Für Übergabe merken</button>
+      </div>
+      {handoffNote && <div className="calculator-profile-note">{handoffNote}</div>}
     </div>
   )
 }
